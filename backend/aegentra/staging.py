@@ -95,6 +95,7 @@ async def create_ticket(
         status="ISSUED", created_at=now, expires_at=now + timedelta(minutes=15),
     )
     session.add(ticket)
+    await session.flush()  # Parent must exist before inserting scoped staging parts.
     parts = []
     for index, part in enumerate(sorted(manifest.parts, key=lambda item: item.path)):
         key = f"staging/{org_id.hex}/{upload_id.hex}/part-{index:02d}"
