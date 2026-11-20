@@ -317,11 +317,27 @@ def test_signed_head_cannot_switch_the_enrolled_bundle_digest():
 
 def test_valid_witness_signature_for_another_bundle_is_rejected():
     f = Fixture()
+    true_bundle = f.resource.fixed_profile.manifest_sha256()
     f.cert = f.cert.model_copy(update={"fixed_bundle_sha256": "b" * 64})
     signature = f.witness_signer.sign(
         witness_message(f.cert), ec.ECDSA(hashes.SHA256()),
     )
     f.cert_raw = signed_certificate_bytes(f.cert, signature)
+
+    # The authority and security witness are independently signed sources:
+    # keep the authority head for the enrolled bundle while the forged
+    # security witness claims a different bundle.
+    original_head = f.head
+
+    async def independent_head(nonce):
+        signed = await original_head(nonce)
+        correct = signed.body.model_copy(update={"fixed_bundle_sha256": true_bundle})
+        signature = f.head_signer.sign(
+            head_message(correct), ec.ECDSA(hashes.SHA256())
+        )
+        return SignedHead(correct, signature)
+
+    f.head = independent_head
     with pytest.raises(AdmissionDenied, match="witness not bound"):
         asyncio.run(f.check())
     assert f.body_calls == 0
