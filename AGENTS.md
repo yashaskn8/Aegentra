@@ -10,4 +10,4 @@ Inspired by the small-diff, first-principles coding discipline often associated 
 - Keep code and comments straightforward: explain why when it is not obvious, not what each line does.
 - Never invent test results, leave fake security controls, or silently deploy.
 - No Docker, Kubernetes, runtime evaluation of submitted code, or AWS mutations without explicit authorization.
-- Security changes go through a reviewable pull request. Do not bypass approval and do not merge automatically.
+- Work directly on main, as requested by the repository owner. Keep each commit small and independently reviewable; verify GitHub Actions before reporting success. Do not deploy without explicit authorization.
