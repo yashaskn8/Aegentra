@@ -5,6 +5,7 @@ on:
     branches: [main]
 permissions:
   contents: read
+
 jobs:
   unit:
     runs-on: ubuntu-latest
@@ -20,3 +21,37 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Run unit tests
         run: python -m pytest -q
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    env:
+      AEGENTRA_DATABASE_URL: postgresql+asyncpg://postgres:ci-admin-only@127.0.0.1:5432/aegentra_ci
+      AEGENTRA_TEST_ADMIN_URL: postgresql+asyncpg://postgres:ci-admin-only@127.0.0.1:5432/aegentra_ci
+      AEGENTRA_TEST_APP_URL: postgresql+asyncpg://aegentra_app:ci-app-only@127.0.0.1:5432/aegentra_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PostgreSQL natively (no containers)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql postgresql-client
+          sudo systemctl start postgresql
+      - name: Create isolated test roles and database
+        run: |
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER ROLE postgres WITH PASSWORD 'ci-admin-only'"
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-app-only'"
+          sudo -u postgres createdb aegentra_ci
+      - name: Install backend
+        working-directory: backend
+        run: python -m pip install -e '.[dev]'
+      - name: Apply actual Alembic migration
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Grant least-privilege test table access
+        run: |
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -d aegentra_ci -c "GRANT USAGE ON SCHEMA public TO aegentra_app; GRANT SELECT, INSERT, UPDATE, DELETE ON assets, evidence TO aegentra_app"
+      - name: Verify PostgreSQL isolation
+        working-directory: backend
+        run: python -m pytest -q tests/test_pg_integration.py
