@@ -15,9 +15,12 @@ from aegentra.bridge_journal import (
     BridgeConflict, record_instance, record_volumes, reserve_attempt,
     record_verified_detach,
 )
+from aegentra.bridge_disposal import (
+    DeletedInventory, DisposalRejected, record_verified_disposal,
+)
 from aegentra.db import (
     Asset, AuditEntry, AuditStream, GuestAttempt, GuestResource, Identity,
-    Organization, OutboxEvent, ScanJob, StagingUpload,
+    Organization, OutboxEvent, ScanJob, ScanReceipt, StagingUpload,
 )
 from aegentra.persistence import make_engine, organization_session
 
@@ -134,12 +137,58 @@ async def exercise() -> None:
             assert len((await s.execute(
                 select(GuestResource).where(GuestResource.job_id == job)
             )).all()) == 3
+        async with admin.begin() as s:
+            await s.execute(insert(ScanReceipt).values(
+                org_id=org, job_id=job, generation=1,
+                result_sha256=b"r" * 32, source_sha256=b"i" * 32,
+                toolchain_sha256=b"t" * 32, status="COMPLETE",
+                coverage="VERIFIED", finding_count=0,
+                created_at=now,
+            ))
+        first = DeletedInventory(
+            account_id=kwargs["account_id"],
+            observed_at=now + timedelta(seconds=30),
+            instance_id="i-00000000000000001",
+            instance_state="terminated",
+            volume_states={
+                "vol-00000000000000001": "not-found",
+                "vol-00000000000000002": "not-found",
+            },
+        )
+        second = DeletedInventory(
+            account_id=kwargs["account_id"],
+            observed_at=now + timedelta(seconds=60),
+            instance_id=first.instance_id,
+            instance_state="not-found",
+            volume_states=first.volume_states,
+        )
+        async with organization_session(factory, org) as s:
+            with pytest.raises(DisposalRejected):
+                await record_verified_disposal(
+                    s, **pinned, first=first,
+                    second=first, now=now + timedelta(seconds=61),
+                )
+            assert await record_verified_disposal(
+                s, **pinned, first=first, second=second,
+                now=now + timedelta(seconds=65),
+            ) == "DISPOSED"
+        async with organization_session(factory, org) as s:
+            assert await record_verified_disposal(
+                s, **pinned, first=first, second=second,
+                now=now + timedelta(seconds=65),
+            ) == "DISPOSED"
+        async with admin.connect() as s:
+            result = (await s.execute(
+                select(GuestAttempt).where(GuestAttempt.job_id == job)
+            )).one()
+            assert result.state == "DISPOSED"
     finally:
         try:
             async with admin.begin() as s:
                 await s.execute(delete(OutboxEvent).where(OutboxEvent.org_id == org))
                 await s.execute(delete(AuditEntry).where(AuditEntry.org_id == org))
                 await s.execute(delete(AuditStream).where(AuditStream.org_id == org))
+                await s.execute(delete(ScanReceipt).where(ScanReceipt.org_id == org))
                 await s.execute(delete(GuestResource).where(GuestResource.org_id == org))
                 await s.execute(delete(GuestAttempt).where(GuestAttempt.org_id == org))
                 await s.execute(delete(ScanJob).where(ScanJob.org_id == org))
