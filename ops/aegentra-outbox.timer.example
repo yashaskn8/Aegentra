@@ -1,0 +1,13 @@
+# Example only. Keep each run short and idempotent; no Docker.
+[Unit]
+Description=Run Aegentra outbox handoff at bounded intervals
+
+[Timer]
+OnBootSec=20s
+OnUnitInactiveSec=10s
+RandomizedDelaySec=2s
+Persistent=true
+Unit=aegentra-outbox.service
+
+[Install]
+WantedBy=timers.target

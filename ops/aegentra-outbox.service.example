@@ -1,0 +1,33 @@
+# Example only. Install native Python wheels and review the IAM and network
+# identity of the host before enabling. This worker needs private PostgreSQL
+# and ONLY a pinned SQS FIFO queue through independently controlled AWS IAM.
+[Unit]
+Description=Aegentra bounded outbox handoff
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=aegentra-outbox
+Group=aegentra-outbox
+EnvironmentFile=/etc/aegentra/outbox.env
+ExecStart=/opt/aegentra/venv/bin/python -m aegentra.outbox_worker
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=256M
+TasksMax=32
+RuntimeMaxSec=120s
+
+# IAM: SQS SendMessage for one FIFO queue only. Restrict outbound to the
+# private SQS VPC endpoint using native network controls after live tests.
