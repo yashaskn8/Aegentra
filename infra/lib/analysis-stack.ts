@@ -1,13 +1,16 @@
 import {
-  CfnParameter, Stack, StackProps,
+  CfnOutput, Stack, StackProps,
   aws_ec2 as ec2,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 /**
- * A deliberately disconnected EC2 skeleton. It is NOT yet an approved
- * untrusted-input sandbox: AMI, kernel hardening and negative reachability
- * testing are prerequisites to accepting customer bytes.
+ * Dedicated offline guest network. No persistent EC2 worker is deployed.
+ *
+ * Each attempt must be created by an independently authorized native bridge
+ * only after persisting its exact AMI, instance, account, AZ, volume IDs,
+ * generation and nonce. CDK synthesis cannot verify effective link-local
+ * or AWS cross-account isolation and does not enable hostile input.
  */
 export class AnalysisStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -23,33 +26,19 @@ export class AnalysisStack extends Stack {
       ],
     });
 
-    const guestSecurityGroup = new ec2.SecurityGroup(this, "GuestSecurityGroup", {
+    const group = new ec2.SecurityGroup(this, "OfflineGuestSecurityGroup", {
       vpc,
       allowAllOutbound: false,
-      description: "Offline analysis guest: no ingress or egress",
+      description: "No ingress or egress for disposable guest attempts",
     });
 
-    const imageId = new CfnParameter(this, "QualifiedNativeAmiId", {
-      type: "String",
-      description: "Independently reviewed, signed native Linux AMI (must be qualified)",
-      allowedPattern: "^ami-[0-9a-fA-F]+$",
+    new CfnOutput(this, "GuestSubnetId", {
+      value: vpc.isolatedSubnets[0].subnetId,
+      description: "Review route tables and link-local behavior before any use",
     });
-
-    new ec2.CfnInstance(this, "InertGuestPrototype", {
-      imageId: imageId.valueAsString,
-      instanceType: "t3.small",
-      metadataOptions: {
-        httpEndpoint: "disabled",
-        httpTokens: "required",
-        instanceMetadataTags: "disabled",
-      },
-      networkInterfaces: [{
-        deviceIndex: "0",
-        subnetId: vpc.isolatedSubnets[0].subnetId,
-        groupSet: [guestSecurityGroup.securityGroupId],
-        associatePublicIpAddress: false,
-      }],
-      // No instance profile, user data, endpoints, NAT or internet gateway.
+    new CfnOutput(this, "GuestSecurityGroupId", {
+      value: group.securityGroupId,
+      description: "No egress here is necessary but not sufficient for isolation",
     });
   }
 }

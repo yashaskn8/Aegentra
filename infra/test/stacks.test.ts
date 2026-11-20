@@ -20,13 +20,11 @@ test("isolated analysis skeleton has no public route or workload credential", ()
   template.resourceCountIs("AWS::EC2::NatGateway", 0);
   template.resourceCountIs("AWS::EC2::VPCEndpoint", 0);
   template.resourceCountIs("AWS::IAM::InstanceProfile", 0);
-  template.hasResourceProperties("AWS::EC2::Instance", {
-    MetadataOptions: { HttpEndpoint: "disabled", HttpTokens: "required" },
-  });
-  const instances = Object.values(template.findResources("AWS::EC2::Instance"));
-  assert.equal(instances.length, 1);
-  assert.equal(instances[0].Properties.IamInstanceProfile, undefined);
-  assert.equal(instances[0].Properties.NetworkInterfaces[0].AssociatePublicIpAddress, false);
+  // No idle or persistent guest should exist; the bridge owns ephemeral
+  // launch only after a trusted per-attempt DB record exists.
+  template.resourceCountIs("AWS::EC2::Instance", 0);
+  template.resourceCountIs("AWS::EC2::Volume", 0);
+  template.resourceCountIs("AWS::EC2::VPCPeeringConnection", 0);
 });
 
 test("workload database and evidence are private and encrypted", () => {
