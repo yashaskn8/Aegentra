@@ -20,6 +20,12 @@ class S3VersionReader:
         self.key = key
 
     def chunks(self, version_id: str) -> Iterable[bytes]:
+        if (
+            not isinstance(version_id, str)
+            or version_id in ("", "null")
+            or len(version_id) > 256
+        ):
+            raise EvidenceMismatch("a non-null pinned S3 version is required")
         # Injected client implements boto3 S3 get_object. Never permit a
         # client-selected bucket or unversioned GET.
         response = self.client.get_object(

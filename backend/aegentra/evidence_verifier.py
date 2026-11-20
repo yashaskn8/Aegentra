@@ -41,11 +41,14 @@ def verify_versioned_blob(
     expected_sha256: str,
     expected_length: int,
 ) -> VerifiedBlob:
-    if not version_id or len(version_id) > 256:
+    if (
+        not isinstance(version_id, str)
+        or version_id in ("", "null") or len(version_id) > 256
+    ):
         raise EvidenceMismatch("missing or invalid storage version")
-    if not _DIGEST.fullmatch(expected_sha256):
+    if not isinstance(expected_sha256, str) or not _DIGEST.fullmatch(expected_sha256):
         raise EvidenceMismatch("invalid digest")
-    if not 1 <= expected_length <= MAX_PART_BYTES:
+    if type(expected_length) is not int or not 1 <= expected_length <= MAX_PART_BYTES:
         raise EvidenceMismatch("invalid expected length")
 
     hasher = hashlib.sha256()

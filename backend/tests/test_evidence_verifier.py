@@ -69,3 +69,38 @@ def test_s3_reader_does_not_fall_back_to_latest_object() -> None:
 def test_reader_rejects_ambiguous_key() -> None:
     with pytest.raises(ValueError):
         S3VersionReader(client=object(), bucket="bucket", key="../escape")
+
+
+@pytest.mark.parametrize("version_id", [None, "", "null", b"v1", "x" * 257])
+def test_s3_reader_refuses_unpinned_or_invalid_version_before_network(version_id):
+    class RefuseNetwork:
+        def get_object(self, **kwargs):
+            pytest.fail("storage must not be contacted for unpinned versions")
+
+    reader = S3VersionReader(
+        client=RefuseNetwork(), bucket="trusted-bucket", key="org/staging/p1",
+    )
+    with pytest.raises(EvidenceMismatch, match="non-null pinned"):
+        list(reader.chunks(version_id))
+
+
+@pytest.mark.parametrize("version_id", [None, "", "null", b"v1", "x" * 257])
+def test_byte_verifier_rejects_unpinned_version_without_reading(version_id):
+    reader = FakeReader([b"test"])
+    with pytest.raises(EvidenceMismatch, match="storage version"):
+        verify_versioned_blob(
+            reader=reader, version_id=version_id,
+            expected_sha256=hashlib.sha256(b"test").hexdigest(),
+            expected_length=4,
+        )
+    assert reader.requested is None
+
+
+@pytest.mark.parametrize("bad_length", [True, 0, -1, "4"])
+def test_byte_verifier_requires_integer_length(bad_length):
+    with pytest.raises(EvidenceMismatch, match="expected length"):
+        verify_versioned_blob(
+            reader=FakeReader([b"test"]), version_id="version-1",
+            expected_sha256=hashlib.sha256(b"test").hexdigest(),
+            expected_length=bad_length,
+        )

@@ -16,3 +16,10 @@ Remaining before qualified use:
 - Independent AWS S3 VersionId verification and network/permissions tests.
 - Guest isolation and analysis, signed receipts, protected origin witness.
 - No per-tenant final-evidence writes from the ordinary API.
+
+The native S3 reader and the byte verifier both reject absent, literal
+`null`, non-string and oversized version identifiers before any object read.
+Literal `null` identifies a potentially mutable unversioned S3 object and
+must never satisfy the immutable-version requirement. Byte lengths must be
+positive integers, never booleans. These checks do not substitute for
+independent AWS IAM and bucket-versioning qualification.
