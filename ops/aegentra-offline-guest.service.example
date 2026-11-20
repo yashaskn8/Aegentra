@@ -1,0 +1,40 @@
+# EXAMPLE ONLY — not safe to enable until native AMI, device mapping,
+# disk custody and independent network/IAM negative tests are qualified.
+# Replace BOTH raw device placeholders after verifying NVMe serial/EBS IDs.
+[Unit]
+Description=Aegentra disposable offline JS analysis guest
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=aegentra-guest
+Group=aegentra-guest
+ExecStart=/opt/aegentra/venv/bin/python -m aegentra.guest_io --input-device=/dev/VERIFIED_INPUT_BLOCK --output-device=/dev/VERIFIED_OUTPUT_BLOCK
+NoNewPrivileges=yes
+PrivateNetwork=yes
+IPAddressDeny=any
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+DevicePolicy=closed
+DeviceAllow=/dev/VERIFIED_INPUT_BLOCK r
+DeviceAllow=/dev/VERIFIED_OUTPUT_BLOCK w
+MemoryMax=256M
+TasksMax=16
+CPUQuota=100%
+RuntimeMaxSec=120s
+
+# One-shot execution must stop and terminate the instance even on failure.
+# No network, IAM, credentials, arbitrary plugins or persistent service.
+
+[Install]
+WantedBy=multi-user.target
