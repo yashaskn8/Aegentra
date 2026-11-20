@@ -1,46 +1,79 @@
-# Implementation status — S1 foundation
+# Implementation status — Aegentra / SA-1.1
 
-Status: **shadow-only, not production-qualified**.
+**Verdict: conditional GO for local/native development and shadow trials; NO-GO
+for protected production traffic or certification.** Passing GitHub CI is not
+an independent security qualification. No customer origin, AWS account, KMS
+root, native EC2 workload, or public gateway has been deployed by this repo
+workflow. This document describes code at the current `main` branch.
 
-Implemented:
-- Read-only liveness endpoint.
-- Strict, side-effect-free metadata validator behind an explicitly test-only app factory option.
-- Explicit scan coverage assessment; parser/required-check failure cannot produce a security approval.
-- PostgreSQL organization, asset and evidence models; Alembic RLS migration.
-- Internal transaction-scoped database session and explicitly tenant-filtered asset operations.
-- Real native PostgreSQL integration testing for tenant separation, foreign key scope, and reused connections.
-- Backend unit tests and GitHub Actions checks with no Docker or service containers.
-- React/TypeScript dashboard shell without live scanning or enforcement.
+The supported phase-1 release profile is **one enrolled controlled static
+origin, one exact HTML entry document and one same-origin classic JavaScript
+resource**. Arbitrary React builds, third-party CDNs, dynamic dependency
+loaders and generic web ecosystems remain investigation/shadow only.
 
-Not implemented:
-- OIDC/BFF sessions; the asset store is internal only and is not an HTTP endpoint.
-- Signed/sealed evidence ingestion, independently witnessed immutable audit archive, outbox dispatcher, isolated analyzer, release governance, signing, protected serving, or AWS deployment.
-- Production PostgreSQL role provisioning/permissions review and independent security testing.
-- Frontend dependency lockfile and release-ready pinned supply-chain review.
-- No production security decision may be made using these components.
+## Built and exercised with native CI fixtures
 
-Important RLS limitation: PostgreSQL custom transaction settings can be changed by a role capable of executing arbitrary SQL. RLS is defense in depth, not a substitute for authentication, least-privilege DB roles, parameterized queries, and server-owned organization scope.
+- **Identity/API/console (S1):** FastAPI BFF with OIDC code/PKCE/nonce/session
+  protection, authenticated assets and assigned case routes, tenant/asset
+  scope and a bounded React/TypeScript/Vite console.
+- **PostgreSQL (S1):** Alembic migrations, FORCE RLS, composite scoped foreign
+  keys, independently restricted API/bridge/validator/release/observer/outbox
+  CI roles, and transactionally coupled hash-chain audit plus outbox.
+- **Content intake (S1/S2):** Canonical content manifests, bounded staging
+  tickets and checksum-constrained S3 presigned PUT contracts. Finalized
+  uploads remain AWAITING_VERIFICATION until a distinct verifier checks the
+  exact S3 versions and bytes.
+- **Static analysis (S2):** Inert JS Tree-sitter and npm lockfile inspection,
+  explicit unknown coverage, fenced PostgreSQL scan jobs, bounded raw guest
+  protocol, readback validation, EC2/EBS custody journal, and unsigned
+  advisory scan receipts. No customer code is imported or executed by API.
+- **Private review/release contracts (S2/S3):** Canonical review subject,
+  independently enrolled two-reviewer signature verification, shadow-only
+  signed grants and consumed nonce/selection sequence, distinct witness
+  certificate, conditional immutable S3 archive, guarded private publish,
+  publication receipt sealing, and nonce-bound KMS head generation.
+  Synthetic ENFORCED state used **only in native database tests**; normal API
+  does not expose ENFORCED enrollment or privileged signing.
+- **Reference serving (S3):** Standalone fail-closed ASGI gateway prebuffers
+  exact immutable bytes, checks signed headers/witness/current head twice,
+  queries a fresh signed independent veto last, and refuses range/conditional
+  variants. It is not connected to a real customer origin or CDN.
+- **Observability/incident (S3/S4):** Signed independent client-facing
+  observation contract; historical mismatch vs current STOP distinction,
+  overdue/missing coverage HOLD; separate security-account STOP CAS code,
+  signed authority/gateway acknowledgment and drain-deadline verification.
+- **Native events (S4):** Bounded, per-stream ordered PostgreSQL outbox
+  delivery leases, retry/replay fencing, separate dispatcher role, one-shot
+  SQS FIFO adapter, and systemd service/timer examples. Remote consumer
+  idempotency and real queue receipt semantics remain unqualified.
 
-Next: implement OIDC/BFF identity and authenticated asset APIs; exercise database permission boundaries and migrations under separate production-style roles.
+## Not yet operating or independently qualified
 
-The current database-local audit hash chain is not sufficient against database-administrator compromise; an independently governed archive is a later stage. Outbox records are durable but are not yet dispatched.
+- Actual 3-account separation, independent IAM/KMS administrators and
+  human hardware-backed credential enrollment/revocation.
+- Native disposable EC2 guest lifecycle, AMI build provenance, no-route/no-
+  IMDS/no-IAM runtime drills, volume attach/detach, trusted byte acquisition,
+  autonomous janitor, SQS controller and secure guest execution qualification.
+- Signed source-builder provenance and independent two-channel final-byte
+  provenance; an offline parser can never certify semantic safety.
+- External root/veto monotonic floor, retained append-only history, physical
+  AWS S3 Object Lock retention/versioning and recovery/rotation custodians.
+- Actual enrolled origin, bypass-closure, no-other-script/resource controls,
+  live head and signed security services with mTLS, browser/CDN fidelity,
+  bounded admission/writes and independent cohort readback.
+- Live emergency-STOP endpoint and enrolled gateway registry, signed
+  acknowledgments persisted externally, independent containment/resume drill.
+- End-to-end retained audit/checkpoint archive, external consumer retries and
+  DLQ, quotas, retention/tombstones, exports, consent, full incident workflows.
+- Load/cost/availability capacity and restoration drills, sealed Matrix C
+  oracles and independent verification of applicable F01–F15 tests.
+- Optional AI broker, consent-controlled egress and blind evaluation (S5).
 
-## S2 prototype (inert fixtures only)
+Never interpret a static scan, successful artifact hash, signed fixture or a
+passing test as production release authorization. This repo intentionally
+does not deploy protected resources without customer-owned infrastructure
+enrollment and independent P0 qualification.
 
-- Added a bounded JavaScript Tree-sitter syntax analyzer (no execution, no automatic release approval), with explicit failure states and byte spans.
-- Added a deterministic streaming SHA-256 verifier of server-authorized versioned blobs, with an injectable S3 adapter.
-- These functions **must not process untrusted customer bytes in the API process**. The native offline EC2 guest and independent verifier are still unbuilt/unqualified.
-- See [security release gates](security-release-gates.md) before making protected deployment claims.
-
-## Investigation cases (S1)
-
-- Cases are tenant- and asset-scoped and visible only to explicitly assigned case members.
-- Case creation requires an enrolled ANALYST or ADMIN; it is idempotent and records a transactionally consistent audit/outbox event.
-- A case member can link only existing evidence belonging to the same asset; cross-case and cross-org reads return no metadata.
-- Case membership administration, retention policy, signed source provenance and a real evidence intake pipeline remain outstanding. Tests use synthetic metadata, not submitted hostile files.
-
-## Console and query bounds
-
-- React now displays assigned cases and supports authenticated case creation for ANALYST/ADMIN identities.
-- Asset list queries cap the result set at 101, returning at most 100 and an explicit truncation flag.
-- Case evidence bytes are still unavailable: the prior metadata-only evidence table is a fixture foundation, not a production ingest path.
+Native stack remains Python/FastAPI/SQLAlchemy/Alembic/PostgreSQL,
+React/TypeScript/Vite, AWS CDK/EC2/systemd. **No Docker, Compose, containers
+or Kubernetes.**

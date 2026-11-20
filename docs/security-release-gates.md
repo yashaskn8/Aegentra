@@ -1,31 +1,39 @@
-# SA-1.1 release qualification gates
+# SA-1.1 security-release gates — production NO-GO
 
-**Current verdict: NO-GO for protected production deployments.**
+Code-level protocols and synthetic native CI tests have advanced, but
+**none of the F01–F15 protected-production qualifications have been
+independently signed off.** A component existing in Python is not proof that
+independent AWS identities, human custody, enrolled origin routing, live veto
+or customer TLS behavior are configured correctly.
 
-This checklist is deliberately a gap ledger, not an assertion of completed controls.
+| SA-1.1 decision | Repository implementation | Remaining gate |
+|---|---|---|
+| D1 exact origin closure | Bounded single-resource ASGI reference gateway | Independent controlled-origin writer and bypass/CSP/CDN negative tests |
+| D2 witness/publish | Grant, selection, witness, pending-seal publication, receipt and head contracts | Production independent witness key, real S3 VersionId proof, concurrency/crash tests |
+| D3 serialization | SERIALIZABLE primary release sessions, guard/nonce/sequence uniqueness | Production writer role ownership, lock/race/ack schedule and latency tests |
+| D4 independent reviewers | Canonical subject, distinct Ed25519 signers and challenges | Hardware credential and custody enrollment, independent review clients, revocation |
+| D5 scope/profile | Exact source/header/profile and fail-closed prebuffering | Live HTML/JS origin restriction and customer response fidelity |
+| D6 cloud separation | CDK isolated guest VPC primitives, independent-role contracts | Native separate-account EC2/IAM/IMDS/veto negative drills |
+| D7 parser coverage | Tree-sitter and bounded raw guest frame/proof validation | Independent live isolation and hostile-input qualification |
+| D8 capacity/cost | Native unit/integration CI | Real target request and cost envelope |
+| D9 case/API/console | OIDC, bounded API, cases, React shell, inert diffs | Browser accessibility, complete safe case projections, exports |
+| D10 inference | Not enabled | Consent/data broker, blind accuracy and egress assessment |
+| D11 external root | Separate security-account STOP CAS/veto contract | Monotonic floor, physical protected keys and restoration |
+| D12 database/audit | Composite FKs, FORCE RLS, role tests, outbox | External immutable archive, quotas, backup/tombstone |
+| D13 freeze/containment | STOP/HOLD, observations, signed gateway ACK/drain oracle | Real incident identities, all gateway ACKs and drained live responses |
+| D14 jobs/events | Fenced scan leases, exact frames, outbox/SQS handoff | Native EC2 resource janitor, integration retries, workload quota |
+| D15 evidence efficacy | Static facts only, explicit unknown/incomplete states | Independent accuracy datasets and proof provenance |
 
-## Confirmed in CI
-- Native Python tests and PostgreSQL RLS integration exercise organization-scoped asset operations.
-- OIDC signature, issuer, audience and nonce negative tests use a test RSA key.
-- Idempotent asset registration and transactional local audit/outbox are database-tested.
-- Inert JavaScript fixtures exercise static parser syntax, bounded AST traversal and explicit gaps.
-- Exact-blob verifier checks original bytes against a pinned object version and expected digest with fake storage.
+**Non-negotiable gating:** production ENFORCED requires all relevant P0
+witness/origin/custody/STOP and Matrix C oracles, independently checked. No
+"emergency allow." A historical mismatched observation does not disable a
+healthy new release. Unavailable primary head or security veto denies
+new protected responses. Already-sent bytes cannot be revoked.
 
-## Unverified / release-blocking
-- Native AWS EC2 offline guest isolation, no metadata or egress, runtime resource limits, disposal and independent negative tests.
-- Independently administered byte verifier and two-human authorization service.
-- Release grant, one-time redemption, separate security-account witness, guarded publish and origin serve.
-- Controlled customer origin closure, gateway readback, cache behavior, emergency veto, crash and race drills.
-- Production IAM, TLS, KMS, RDS backup/restore, S3 Object Lock, CloudTrail and real S3 VersionId verification.
-- Strict dependency lockfiles and signed native build artifacts with independent custody.
-- Ingest authorization, quotas, data classification, retention and consent/revocation.
-- Full scan job state machine, SQS leases/fencing, bounded raw guest frame and trusted result validation.
-- Outbox dispatcher, independently archived audit, incident handling and recovery.
-- Browser integration at real HTTPS origin and public-exposure review; unqualified staging is not production.
-- Independent assessor review with SA-1.1 F01–F15 test oracles and written sign-off.
+Separate private incident/key/custody recovery and actual AWS deployment
+are **not performed by this repository CI**. The SA-1.1 PDF references a
+detailed Matrix C oracle but does not contain its full fixture descriptions;
+those must be finalized before claiming certification.
 
-Security principle: a passing parser, local unit test or successful HTTP endpoint never authorizes production publication. Do not enable untrusted customer analysis until native guest isolation is qualified.
-
-## Scoped database write boundary (CI)
-
-The ordinary API role has SELECT-only access to final evidence and SELECT/INSERT-only access to audit entries. A native PostgreSQL negative test confirms that the API role cannot insert even a same-organization evidence record. This is **role-level restriction**, not independent verifier or immutable archive qualification; the production role grants and migrations must be tested in a separate environment.
+Read component-specific documentation in `docs/` for exact gaps and
+synthetic test contracts.

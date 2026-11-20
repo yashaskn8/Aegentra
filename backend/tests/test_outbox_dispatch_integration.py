@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -19,6 +20,7 @@ from aegentra.outbox_dispatch import (
     DispatchRejected, acknowledge_delivery, claim_outbox, fail_delivery,
 )
 from aegentra.persistence import make_engine, organization_session
+from aegentra.outbox_worker import SqsFifoSink, deliver_batch
 
 
 @pytest.mark.skipif(
@@ -144,6 +146,49 @@ async def _exercise() -> None:
             assert rows[0].delivered_at is not None
             assert rows[0].lease_generation == 2
             assert rows[1].delivered_at is None
+
+        # End-to-end: PostgreSQL claim -> fake SQS transport -> DB ACK.
+        async with organization_session(factory, org) as s:
+            assert await acknowledge_delivery(
+                s, org_id=org, event_id=remaining[0].event_id,
+                generation=remaining[0].generation, nonce=remaining[0].nonce,
+                delivery_reference="sink-receipt-2",
+                now=now + timedelta(seconds=7),
+            )
+        async with organization_session(admin_factory, org) as s:
+            await record_event(
+                s, org_id=org, actor_id=actor, stream="dispatch",
+                event_type="THIRD_EVENT", body={"safe": True},
+            )
+
+        class FakeSqs:
+            def __init__(self) -> None:
+                self.sent = []
+
+            def send_message(self, **kwargs):
+                self.sent.append(kwargs)
+                return {"MessageId": "00000000-0000-0000-0000-000000000001"}
+
+        sqs = FakeSqs()
+        sink = SqsFifoSink(
+            sqs=sqs,
+            queue_url="https://sqs.us-east-1.amazonaws.com/123456789012/events.fifo",
+        )
+        summary = await deliver_batch(
+            sessions=factory, org_id=org, sink=sink,
+            now=lambda: now + timedelta(seconds=8),
+        )
+        assert summary.claimed == summary.enqueued == 1
+        assert summary.retried == summary.stale == 0
+        assert json.loads(sqs.sent[0]["MessageBody"])["sequence"] == 3
+        async with admin.connect() as s:
+            delivered = (await s.execute(
+                select(OutboxEvent).where(
+                    OutboxEvent.org_id == org, OutboxEvent.sequence == 3,
+                )
+            )).one()
+            assert delivered.delivered_at is not None
+            assert delivered.delivery_reference.startswith("sqs:")
     finally:
         try:
             async with admin.begin() as s:
