@@ -290,3 +290,32 @@ class StagingPart(Base):
         CheckConstraint("octet_length(content_sha256) = 32", name="staging_part_digest_length"),
         CheckConstraint("byte_length > 0 AND byte_length <= 10485760", name="staging_part_length"),
     )
+
+
+class ScanJob(Base):
+    """Untrusted scan attempt metadata; never a release authorization."""
+
+    __tablename__ = "scan_jobs"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    upload_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempt_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_nonce: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32), nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "upload_id"], ["staging_uploads.org_id", "staging_uploads.id"]),
+        CheckConstraint(
+            "status IN ('QUEUED','LEASED','PENDING_TRUSTED_VALIDATION','UNKNOWN')",
+            name="scan_job_status",
+        ),
+        CheckConstraint("attempts BETWEEN 0 AND 3", name="scan_job_attempts"),
+        CheckConstraint("attempt_generation >= 0", name="scan_job_generation"),
+        CheckConstraint("result_sha256 IS NULL OR octet_length(result_sha256) = 32", name="scan_job_result_hash"),
+    )
