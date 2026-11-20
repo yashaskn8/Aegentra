@@ -95,7 +95,7 @@ def fixture(body_override=None, headers_override=None, status=200):
         assert request.headers["accept-encoding"] == "identity"
         assert "if-none-match" not in request.headers
         return httpx.Response(
-            status, headers=headers, content=actual_body,
+            status, headers=headers, stream=httpx.ByteStream(actual_body),
             request=request,
         )
 
