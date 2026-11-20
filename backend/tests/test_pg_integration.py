@@ -110,9 +110,21 @@ async def _exercise_isolation() -> None:
                     )
                 )
 
+        with pytest.raises(DBAPIError, match="permission denied"):
+            async with organization_session(factory, org_a) as session:
+                # The ordinary API role cannot originate final sealed evidence,
+                # even for its own organization. Only a separate verifier may.
+                await session.execute(
+                    insert(Evidence).values(
+                        org_id=org_a, id=uuid4(), asset_id=asset_a,
+                        digest=b"y" * 32, kind="forbidden-final-write",
+                    )
+                )
+
         with pytest.raises(DBAPIError):
             async with organization_session(factory, org_a) as session:
-                # RLS permits this org, but composite FK rejects an asset from another org.
+                # The app must not write evidence. This also blocks a foreign
+                # asset reference independently of the composite FK.
                 await session.execute(
                     insert(Evidence).values(
                         org_id=org_a, id=uuid4(), asset_id=asset_b,

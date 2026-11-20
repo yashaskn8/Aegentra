@@ -25,3 +25,7 @@ This checklist is deliberately a gap ledger, not an assertion of completed contr
 - Independent assessor review with SA-1.1 F01–F15 test oracles and written sign-off.
 
 Security principle: a passing parser, local unit test or successful HTTP endpoint never authorizes production publication. Do not enable untrusted customer analysis until native guest isolation is qualified.
+
+## Scoped database write boundary (CI)
+
+The ordinary API role has SELECT-only access to final evidence and SELECT/INSERT-only access to audit entries. A native PostgreSQL negative test confirms that the API role cannot insert even a same-organization evidence record. This is **role-level restriction**, not independent verifier or immutable archive qualification; the production role grants and migrations must be tested in a separate environment.
