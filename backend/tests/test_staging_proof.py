@@ -16,7 +16,7 @@ def fixture():
     subject = ReviewSubject(
         kind="aegentra.review.subject.v1",
         incarnation=uuid4(), org_id=uuid4(), asset_id=uuid4(),
-        target_id=uuid4(), destination_host="example.test",
+        target_id=uuid4(), destination_host="example.test", resource_path="/index.html",
         content_sha256="1" * 64, storage_sha256="2" * 64,
         independent_bytes_sha256="1" * 64,
         delivery_profile_sha256="3" * 64,

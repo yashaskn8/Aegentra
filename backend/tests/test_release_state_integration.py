@@ -38,7 +38,7 @@ def signed_fixtures(org, asset, target, incarnation, now, submitter):
     subject = ReviewSubject(
         kind="aegentra.review.subject.v1", org_id=org, asset_id=asset,
         target_id=target, incarnation=incarnation,
-        destination_host="origin.example.test",
+        destination_host="origin.example.test", resource_path="/index.html",
         content_sha256="a" * 64, storage_sha256="b" * 64,
         independent_bytes_sha256="a" * 64,
         delivery_profile_sha256="c" * 64,
@@ -131,7 +131,7 @@ async def _exercise() -> None:
         async with release_session(sessions, org) as s:
             await enroll_shadow_target(
                 s, org_id=org, target_id=target, asset_id=asset,
-                destination_host="origin.example.test", actor_id=submitter,
+                destination_host="origin.example.test", resource_path="/index.html", actor_id=submitter,
             )
 
         subject, endorsements, registry, stage, vkey, signature = signed_fixtures(

@@ -87,6 +87,7 @@ async def enroll_shadow_target(
     session: AsyncSession, *,
     org_id: UUID, target_id: UUID, asset_id: UUID,
     destination_host: str, actor_id: UUID,
+    resource_path: str = "/index.html",
 ) -> None:
     if not destination_host or destination_host != destination_host.lower():
         raise ReleaseConflict("destination host must be normalized")
@@ -103,7 +104,8 @@ async def enroll_shadow_target(
         raise ReleaseConflict("target already exists")
     session.add(ReleaseTarget(
         org_id=org_id, id=target_id, asset_id=asset_id,
-        destination_host=destination_host, mode="SHADOW", guard="ACTIVE",
+        destination_host=destination_host, resource_path=resource_path,
+        mode="SHADOW", guard="ACTIVE",
         epoch=1, next_attempt_sequence=0, published_revision=0,
     ))
     await session.flush()
@@ -142,6 +144,7 @@ async def issue_shadow_grant(
         or target.epoch != subject.target_epoch
         or target.asset_id != subject.asset_id
         or target.destination_host != subject.destination_host
+        or target.resource_path != subject.resource_path
         or target.mode != "SHADOW"
         or target.guard != "ACTIVE"
         or target.published_revision != subject.prior_published_revision

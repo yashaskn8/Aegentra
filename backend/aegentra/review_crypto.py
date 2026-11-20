@@ -49,6 +49,7 @@ class ReviewSubject(BaseModel):
     asset_id: UUID
     target_id: UUID
     destination_host: str = Field(min_length=3, max_length=253, pattern=r"^[a-z0-9.-]+$")
+    resource_path: str = Field(min_length=1, max_length=160, pattern=r"^/[A-Za-z0-9_.-]*$")
     content_sha256: str = Field(pattern=_HEX)
     storage_sha256: str = Field(pattern=_HEX)
     independent_bytes_sha256: str = Field(pattern=_HEX)

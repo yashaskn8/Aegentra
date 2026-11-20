@@ -434,12 +434,15 @@ class ReleaseTarget(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     asset_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     destination_host: Mapped[str] = mapped_column(String(253), nullable=False)
+    resource_path: Mapped[str | None] = mapped_column(String(160), nullable=True)
     mode: Mapped[str] = mapped_column(String(16), nullable=False, default="SHADOW")
     guard: Mapped[str] = mapped_column(String(24), nullable=False, default="ACTIVE")
     epoch: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     next_attempt_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     published_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     published_attempt_sequence: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    origin_bucket: Mapped[str | None] = mapped_column(String(63), nullable=True)
+    origin_key_prefix: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     __table_args__ = (
         ForeignKeyConstraint(["org_id"], ["release_org_guards.org_id"]),
@@ -540,6 +543,12 @@ class ReleasePublication(Base):
     representation_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     delivery_profile_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    origin_bucket: Mapped[str | None] = mapped_column(String(63), nullable=True)
+    origin_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    origin_version_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING_SEAL")
+    receipt_version_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    receipt_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32), nullable=True)
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -554,6 +563,11 @@ class ReleasePublication(Base):
         CheckConstraint("octet_length(witness_sha256) = 32", name="release_publication_witness_length"),
         CheckConstraint("octet_length(representation_sha256) = 32", name="release_publication_bytes_length"),
         CheckConstraint("octet_length(delivery_profile_sha256) = 32", name="release_publication_profile_length"),
+        CheckConstraint("status IN ('PENDING_SEAL','SEALED')", name="release_publication_status"),
+        CheckConstraint(
+            "receipt_sha256 IS NULL OR octet_length(receipt_sha256) = 32",
+            name="release_publication_receipt_length",
+        ),
     )
 
 
