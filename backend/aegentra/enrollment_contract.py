@@ -18,6 +18,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from aegentra.fixed_delivery import FixedStaticProfile, UnsupportedDelivery
+
 
 class EnrollmentRejected(ValueError):
     pass
@@ -36,8 +38,10 @@ class ProtectedOriginContract(BaseModel):
     target_id: UUID
     incarnation: UUID
     destination_host: str = Field(pattern=_HOST)
-    html_path: str = Field(pattern=_PATH)
-    classic_js_path: str = Field(pattern=_PATH)
+    html_path: Literal["/index.html"]
+    classic_js_path: str = Field(pattern=r"^/app-[0-9a-f]{64}\.js$")
+    script_sha256: str = Field(pattern=_HEX)
+    script_length: int = Field(strict=True, gt=0, le=1024 * 1024)
     html_max_bytes: int = Field(strict=True, gt=0, le=1024 * 1024)
     js_max_bytes: Literal[1048576]
     origin_bucket: str = Field(min_length=3, max_length=63)
@@ -59,10 +63,7 @@ class ProtectedOriginContract(BaseModel):
     @model_validator(mode="after")
     def bounded_profile(self) -> "ProtectedOriginContract":
         if (
-            self.html_path == self.classic_js_path
-            or self.html_path.lower().endswith(".js")
-            or not self.classic_js_path.lower().endswith(".js")
-            or not self.html_path.lower().endswith(".html")
+            self.classic_js_path != "/app-" + self.script_sha256 + ".js"
             or not self.origin_prefix.startswith("published/")
             or not self.origin_prefix.endswith("/")
             or ".." in self.origin_prefix.split("/")
@@ -74,6 +75,30 @@ class ProtectedOriginContract(BaseModel):
             or not self.signed_at < self.expires_at
         ):
             raise ValueError("invalid fixed protected-origin or independent custody profile")
+        # The signed enrollment must match the *actual* fixed HTML+JS
+        # template and generated header profile, not an invented path.
+        try:
+            profile = FixedStaticProfile(
+                host=self.destination_host,
+                script_sha256=self.script_sha256,
+                script_length=self.script_length,
+            )
+            html = profile.generated_html()
+            entry_profile = hashlib.sha256(
+                b"aegentra.delivery.profile.v1\x00"
+                + rfc8785.dumps(profile.headers(
+                    path=profile.entry_path, content=html,
+                ))
+            ).hexdigest()
+        except UnsupportedDelivery as exc:
+            raise ValueError("fixed browser delivery template unsupported") from exc
+        if (
+            len(html) > self.html_max_bytes
+            or self.html_path != profile.entry_path
+            or self.classic_js_path != profile.script_path
+            or self.delivery_profile_sha256 != entry_profile
+        ):
+            raise ValueError("signed delivery profile differs from fixed template")
         return self
 
     def canonical(self) -> bytes:

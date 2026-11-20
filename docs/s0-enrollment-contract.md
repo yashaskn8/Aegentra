@@ -1,8 +1,9 @@
 # SA-1.1 S0 — independent enrollment contract freeze
 
 The new `ProtectedOriginContract` freezes the deliberately narrow
-protected-origin scope: one exact HTML entry path, one same-origin
-classic-JS path, maximum 1 MiB JavaScript, pinned response profile,
+protected-origin scope: one exact HTML entry path, one same-origin digest-addressed
+classic-JS path, maximum 1 MiB JavaScript, the generated fixed HTML,
+and exact entry-header/CSP profile hash, pinned response profile,
 immutable origin bucket/prefix, distinct workload/analysis/security
 12-digit AWS account IDs, AWS region, data-residency and incident
 policies, frozen fixture oracle, fail-closed outage behavior, and a

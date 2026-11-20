@@ -1,5 +1,9 @@
 """S0 scope requires distinct customer and security custodians."""
 from dataclasses import replace
+import hashlib
+
+import rfc8785
+from aegentra.fixed_delivery import FixedStaticProfile
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -16,17 +20,27 @@ from aegentra.enrollment_contract import (
 
 def fixture():
     now = datetime(2026, 11, 20, 12, tzinfo=timezone.utc)
+    profile = FixedStaticProfile(
+        host="static.example.test", script_sha256="1" * 64,
+        script_length=100,
+    )
+    html = profile.generated_html()
+    headers_sha = hashlib.sha256(
+        b"aegentra.delivery.profile.v1\x00"
+        + rfc8785.dumps(profile.headers(path=profile.entry_path, content=html))
+    ).hexdigest()
     contract = ProtectedOriginContract(
         kind="aegentra.enrollment.protected-origin.v1",
         org_id=uuid4(), target_id=uuid4(), incarnation=uuid4(),
         destination_host="static.example.test",
-        html_path="/index.html", classic_js_path="/app.js",
+        html_path="/index.html", classic_js_path=profile.script_path,
+        script_sha256=profile.script_sha256, script_length=profile.script_length,
         html_max_bytes=524288, js_max_bytes=1048576,
         origin_bucket="pinned-static-origin", origin_prefix="published/enrolled/",
         workload_account="123456789012", analysis_account="123456789013",
         security_account="123456789014", aws_region="us-east-1",
         residency_policy_sha256="a" * 64, incident_policy_sha256="b" * 64,
-        fixture_oracle_sha256="c" * 64, delivery_profile_sha256="d" * 64,
+        fixture_oracle_sha256="c" * 64, delivery_profile_sha256=headers_sha,
         outage_behavior="DENY_PROTECTED_READS",
         release_mode="SHADOW_PENDING_INDEPENDENT_QUALIFICATION",
         max_admission_milliseconds=2000,
