@@ -12,6 +12,8 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from aegentra.containment_archive import ContainmentProofArchive
+from test_containment_archive import FakeS3, FakeSTS
 from aegentra.db import (
     Asset, AuditEntry, AuditStream, CaseMembership, Identity,
     IncidentContainmentReceipt, InvestigationCase, Organization, OutboxEvent,
@@ -53,11 +55,17 @@ async def _exercise() -> None:
         authority_fence=evidence["authority_fence"],
         gateway_acks=evidence["gateway_acks"],
     )
-    archived = ContainmentArchiveRef(
-        bucket="security-incidents",
-        key=f"incidents/v1/{org.hex}/{case_id.hex}/{root.veto_generation:020d}",
-        version_id="immutable-incident-record-v1",
-        sha256=hashlib.sha256(raw).hexdigest(),
+    independent_archive = ContainmentProofArchive(
+        s3=FakeS3(), sts=FakeSTS(), bucket="security-incidents",
+        security_account_id="123456789012",
+    )
+    archived = independent_archive.append(
+        org_id=org, case_id=case_id,
+        generation=root.veto_generation, canonical_proof=raw,
+    )
+    retrieved = independent_archive.read_exact(
+        archived, org_id=org, case_id=case_id,
+        generation=root.veto_generation,
     )
     args = dict(
         org_id=org, case_id=case_id, target_id=target,
@@ -67,7 +75,7 @@ async def _exercise() -> None:
         authority_key=evidence["authority_key"],
         gateway_acks=evidence["gateway_acks"],
         enrolled_gateways=evidence["enrolled_gateways"],
-        archive_ref=archived, exact_archive_bytes=raw,
+        archive_ref=archived, exact_archive_bytes=retrieved,
         pinned_archive_bucket="security-incidents", now=now,
     )
     try:
@@ -121,6 +129,14 @@ async def _exercise() -> None:
                 await record_independent_containment(s, **{
                     **args, "gateway_acks": args["gateway_acks"][:1],
                 })
+
+        # Even an exact version reference cannot substitute for a different
+        # byte stream than the immutable S3 record.
+        with pytest.raises(ContainmentStateRejected):
+            async with release_session(factory, org) as s:
+                await record_independent_containment(
+                    s, **{**args, "exact_archive_bytes": retrieved + b"x"}
+                )
 
         async with release_session(factory, org) as s:
             assert await record_independent_containment(s, **args) == "CONTAINED"
