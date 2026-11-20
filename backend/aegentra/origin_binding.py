@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from pydantic import BaseModel, ConfigDict, Field
 
 from aegentra.review_crypto import ReviewRejected, ReviewSubject
+from aegentra.origin_scope import origin_key_in_scope
 
 _HEX = r"^[0-9a-f]{64}$"
 
@@ -69,9 +70,7 @@ def verify_origin_binding(
         or binding.delivery_profile_sha256 != subject.delivery_profile_sha256
         or binding.fixed_bundle_sha256 != subject.fixed_bundle_sha256
         or binding.origin_bucket != enrolled_bucket
-        or not binding.origin_key.startswith(enrolled_key_prefix)
-        or not enrolled_key_prefix.startswith("published/")
-        or ".." in binding.origin_key.split("/")
+        or not origin_key_in_scope(enrolled_key_prefix, binding.origin_key)
         or binding.origin_version_id == "null"
     ):
         raise ReviewRejected("signed origin bytes are outside enrolled target")

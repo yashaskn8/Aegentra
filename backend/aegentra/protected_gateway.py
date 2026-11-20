@@ -28,6 +28,7 @@ from aegentra.gateway_signatures import (
 )
 from aegentra.witness_crypto import WitnessBody, WitnessArchiveRef
 from aegentra.witness_archive import MAX_WITNESS
+from aegentra.origin_scope import origin_key_in_scope, valid_origin_prefix
 
 MAX_PROTECTED_BYTES = 1024 * 1024
 MAX_DECISION_SECONDS = 2.0
@@ -135,7 +136,7 @@ class ProtectedAdmission:
         if (
             max_decision_seconds <= 0
             or max_decision_seconds > MAX_DECISION_SECONDS
-            or not resource.allowed_origin_prefix.startswith("published/")
+            or not valid_origin_prefix(resource.allowed_origin_prefix)
             or resource.host != resource.fixed_profile.host
             or resource.path not in {
                 resource.fixed_profile.entry_path, resource.fixed_profile.script_path
@@ -197,9 +198,9 @@ class ProtectedAdmission:
             or head.witness_bucket != self.resource.witness_bucket
             or head.witness_key != prefix + f"{head.attempt_sequence:020d}"
             or head.origin_bucket != self.resource.origin_bucket
-            or not head.origin_key.startswith(self.resource.allowed_origin_prefix)
-            or ".." in head.origin_key.split("/")
-            or head.origin_key.endswith("/")
+            or not origin_key_in_scope(
+                self.resource.allowed_origin_prefix, head.origin_key
+            )
         ):
             raise AdmissionDenied("resource points outside pinned immutable storage")
 

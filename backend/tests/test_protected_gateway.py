@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -342,3 +343,34 @@ def test_valid_witness_signature_for_another_bundle_is_rejected():
         asyncio.run(f.check())
     assert f.body_calls == 0
     assert not f.veto_calls
+
+
+@pytest.mark.parametrize("prefix", [
+    "published/allowed", "published/allow", "published/",
+    "published/allowed//", "published/allowed/../", "published/allowed\\\\",
+])
+def test_gateway_rejects_ambiguous_origin_prefix_at_enrollment(prefix):
+    fixture = Fixture()
+    fixture.resource = replace(fixture.resource, allowed_origin_prefix=prefix)
+    with pytest.raises(ValueError, match="incomplete protected enrollment"):
+        fixture.gate()
+    assert not fixture.head_calls and not fixture.veto_calls
+
+
+def test_gateway_rejects_signed_sibling_origin_key_before_storage_fetch():
+    fixture = Fixture()
+    original_head = fixture.head
+
+    async def neighbor_head(nonce):
+        signed = await original_head(nonce)
+        changed = signed.body.model_copy(update={
+            "origin_key": "published/allowed-neighbor/entry",
+        })
+        return SignedHead(changed, fixture.head_signer.sign(
+            head_message(changed), ec.ECDSA(hashes.SHA256()),
+        ))
+
+    fixture.head = neighbor_head
+    with pytest.raises(AdmissionDenied, match="outside pinned immutable storage"):
+        asyncio.run(fixture.check())
+    assert fixture.body_calls == 0 and not fixture.veto_calls

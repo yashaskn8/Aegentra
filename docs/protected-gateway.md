@@ -41,3 +41,10 @@ active response cutoff and error behavior, restore and bypass tests.
 
 The reference does not prove that a response already sent can be revoked,
 nor that an external CDN will preserve exact signed headers.
+
+Origin bucket key authorization is enforced at both the independent signed
+origin-binding verifier and protected gateway using a **directory-delimited**
+`published/<scope>/` prefix. Enrollment rejects missing terminal slashes,
+root-wide prefixes and ambiguous path segments; signed keys outside the
+exact directory boundary are denied before immutable origin byte reads.
+This is a code-level scope check, not evidence of deployed IAM isolation.

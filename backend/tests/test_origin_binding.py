@@ -82,3 +82,33 @@ def test_origin_signatures_fail_closed(tamper):
         now += timedelta(minutes=10)
     with pytest.raises(ReviewRejected):
         check(subject, proof, sig, pub, now)
+
+
+@pytest.mark.parametrize("enrollment_prefix", [
+    "published/trusted", "published/trust", "published/",
+    "published/trusted//", "published/trusted/../",
+])
+def test_valid_signature_cannot_override_malformed_origin_scope(enrollment_prefix):
+    subject, proof, signature, _, public, now = fixture()
+    with pytest.raises(ReviewRejected, match="outside enrolled target"):
+        verify_origin_binding(
+            binding=proof, signature_der=signature,
+            pinned_verifier_der=public,
+            expected_key_id="independent-origin-verifier",
+            subject=subject, enrolled_bucket="pinned-origin",
+            enrolled_key_prefix=enrollment_prefix, now=now,
+        )
+
+
+@pytest.mark.parametrize("invalid_key", [
+    "published/trusted-neighbor/v1",
+    "published/trusted/../neighbor",
+    "published/trusted//v1",
+    "published/trusted/",
+])
+def test_origin_binding_rejects_unsafe_key_with_valid_signature(invalid_key):
+    subject, proof, _, key, public, now = fixture()
+    changed = proof.model_copy(update={"origin_key": invalid_key})
+    signed = key.sign(origin_message(changed), ec.ECDSA(hashes.SHA256()))
+    with pytest.raises(ReviewRejected, match="outside enrolled target"):
+        check(subject, changed, signed, public, now)
