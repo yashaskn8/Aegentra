@@ -33,6 +33,15 @@ export class SecurityStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
       description: "Independent live security-account veto signing only",
     });
+    const auditCheckpointSigningKey = new kms.Key(this, "AuditCheckpointSigningKey", {
+      keySpec: kms.KeySpec.ECC_NIST_P256,
+      keyUsage: kms.KeyUsage.SIGN_VERIFY,
+      removalPolicy: RemovalPolicy.RETAIN,
+      description: "Independent append-only audit checkpoint signing only",
+    });
+    new CfnOutput(this, "AuditCheckpointSigningKeyArn", {
+      value: auditCheckpointSigningKey.keyArn,
+    });
     new CfnOutput(this, "WitnessSigningKeyArn", {
       value: witnessSigningKey.keyArn,
     });
