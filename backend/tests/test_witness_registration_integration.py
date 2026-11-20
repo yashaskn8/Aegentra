@@ -34,6 +34,14 @@ from aegentra.witness_crypto import (
     WitnessBody, WitnessArchiveRef, signed_certificate_bytes, witness_message,
 )
 from aegentra.witness_registration import witness_committed_selection
+from aegentra.publication_receipt import (
+    PublicationReceipt, publication_receipt_message,
+    signed_publication_receipt_bytes,
+)
+from aegentra.publication_archive import PublicationArchiveRef
+from aegentra.publication_seal import seal_publication_receipt
+from aegentra.head_service import KmsHeadSigner, read_primary_head
+from aegentra.gateway_signatures import verify_head
 from test_release_state_integration import signed_fixtures
 
 
@@ -247,6 +255,94 @@ async def _exercise():
             assert publication.origin_version_id == "source-exact-version"
             assert target_row.published_revision == 1
             assert target_row.published_attempt_sequence == seq
+
+        # A public revision alone remains unavailable: its receipt is unsealed.
+        with pytest.raises(ReleaseConflict):
+            async with release_session(sessions, org) as s:
+                await read_primary_head(
+                    s, org_id=org, target_id=target,
+                    witness_bucket="independent-security-archive",
+                    nonce="h" * 43, now=now,
+                )
+
+        signer = ec.generate_private_key(ec.SECP256R1())
+        receipt = PublicationReceipt(
+            kind="aegentra.release.publication-receipt.v1",
+            audience="aegentra-primary-head-authority",
+            incarnation=incarnation, org_id=org, target_id=target,
+            published_revision=1, attempt_sequence=seq,
+            witness_sha256=ref.object_sha256,
+            representation_sha256=subject.content_sha256,
+            delivery_profile_sha256=subject.delivery_profile_sha256,
+            origin_bucket=binding.origin_bucket, origin_key=binding.origin_key,
+            origin_version_id=binding.origin_version_id,
+            signer_key_id="private-receipt-authority",
+            issued_at=now,
+        )
+        receipt_sig = signer.sign(
+            publication_receipt_message(receipt), ec.ECDSA(hashes.SHA256())
+        )
+        receipt_raw = signed_publication_receipt_bytes(receipt, receipt_sig)
+        receipt_ref = PublicationArchiveRef(
+            bucket="independent-security-archive",
+            key=(
+                f"publications/v1/{org.hex}/{incarnation.hex}/"
+                f"{target.hex}/{1:020d}"
+            ),
+            version_id="receipt-exact-version",
+            sha256=hashlib.sha256(receipt_raw).hexdigest(),
+        )
+        seal_args = dict(
+            org_id=org, target_id=target, published_revision=1,
+            actor_id=submitter, body=receipt, signature_der=receipt_sig,
+            public_key_der=public(signer),
+            expected_signer_key_id="private-receipt-authority",
+            archive_ref=receipt_ref, exact_archive_bytes=receipt_raw,
+            enrolled_archive_bucket="independent-security-archive", now=now,
+        )
+        async with release_session(sessions, org) as s:
+            assert await seal_publication_receipt(s, **seal_args) == "SEALED"
+        async with release_session(sessions, org) as s:
+            assert await seal_publication_receipt(s, **seal_args) == "SEALED"
+
+        head_key = ec.generate_private_key(ec.SECP256R1())
+        class FakeKMS:
+            def sign(self, **kwargs):
+                return {"Signature": head_key.sign(
+                    kwargs["Message"], ec.ECDSA(hashes.SHA256())
+                )}
+
+        async with release_session(sessions, org) as s:
+            head = await read_primary_head(
+                s, org_id=org, target_id=target,
+                witness_bucket="independent-security-archive",
+                nonce="h" * 43, now=now,
+            )
+        signed = KmsHeadSigner(
+            kms=FakeKMS(), key_id="authority-kms-head",
+            public_der=public(head_key),
+        ).sign(head)
+        assert verify_head(
+            signed, pinned_key_der=public(head_key),
+            nonce="h" * 43, org_id=org, target_id=target,
+            incarnation=incarnation, host=subject.destination_host,
+            path=subject.resource_path, now=now,
+        ).published_revision == 1
+
+        # STOP denies future signed heads without altering historical receipts.
+        from aegentra.release_state import set_target_guard
+        async with release_session(sessions, org) as s:
+            await set_target_guard(
+                s, org_id=org, target_id=target,
+                actor_id=submitter, new_guard="STOP_SERVING",
+            )
+        with pytest.raises(ReleaseConflict):
+            async with release_session(sessions, org) as s:
+                await read_primary_head(
+                    s, org_id=org, target_id=target,
+                    witness_bucket="independent-security-archive",
+                    nonce="h" * 43, now=now,
+                )
     finally:
         try:
             async with admin.begin() as s:
