@@ -663,3 +663,39 @@ class ReleaseObservation(Base):
         CheckConstraint("octet_length(observed_profile_sha256) = 32", name="observation_observed_profile"),
         CheckConstraint("octet_length(signature) BETWEEN 8 AND 128", name="observation_signature_size"),
     )
+
+
+class IncidentContainmentReceipt(Base):
+    """Proof reference retained by the independent incident custodian role."""
+
+    __tablename__ = "incident_containment_receipts"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    veto_generation: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    incarnation: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    root_version_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    archive_version_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    archive_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    gateway_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    recorded_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "case_id"],
+            ["investigation_cases.org_id", "investigation_cases.id"],
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "target_id"],
+            ["release_targets.org_id", "release_targets.id"],
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "recorded_by"],
+            ["identities.org_id", "identities.id"],
+        ),
+        CheckConstraint("veto_generation > 0", name="incident_veto_generation"),
+        CheckConstraint("gateway_count BETWEEN 1 AND 256", name="incident_gateway_count"),
+        CheckConstraint("octet_length(archive_sha256) = 32", name="incident_archive_digest"),
+    )
