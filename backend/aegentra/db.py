@@ -49,6 +49,7 @@ class Evidence(Base):
     __table_args__ = (
         ForeignKeyConstraint(["org_id", "asset_id"], ["assets.org_id", "assets.id"]),
         CheckConstraint("octet_length(digest) = 32", name="evidence_digest_length"),
+        UniqueConstraint("org_id", "asset_id", "id", name="uq_evidence_org_asset_id"),
     )
 
 
@@ -179,4 +180,63 @@ class IdempotencyRequest(Base):
     __table_args__ = (
         ForeignKeyConstraint(["org_id", "identity_id"], ["identities.org_id", "identities.id"]),
         CheckConstraint("octet_length(request_hash) = 32", name="idempotency_hash_length"),
+    )
+
+
+class InvestigationCase(Base):
+    __tablename__ = "investigation_cases"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    asset_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    title: Mapped[str] = mapped_column(String(140), nullable=False)
+    created_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="OPEN")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "asset_id"], ["assets.org_id", "assets.id"]),
+        ForeignKeyConstraint(["org_id", "created_by"], ["identities.org_id", "identities.id"]),
+        UniqueConstraint("org_id", "asset_id", "id", name="uq_case_org_asset_id"),
+        CheckConstraint("status IN ('OPEN', 'CLOSED')", name="case_status"),
+        CheckConstraint("revision > 0", name="case_revision_positive"),
+    )
+
+
+class CaseMembership(Base):
+    __tablename__ = "case_memberships"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    identity_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    grant_type: Mapped[str] = mapped_column(String(12), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "case_id"], ["investigation_cases.org_id", "investigation_cases.id"]),
+        ForeignKeyConstraint(["org_id", "identity_id"], ["identities.org_id", "identities.id"]),
+        CheckConstraint("grant_type IN ('OWNER', 'ANALYST', 'VIEWER')", name="case_grant"),
+    )
+
+
+class CaseEvidence(Base):
+    __tablename__ = "case_evidence"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    asset_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    evidence_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    linked_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "asset_id", "case_id"],
+            ["investigation_cases.org_id", "investigation_cases.asset_id", "investigation_cases.id"],
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "asset_id", "evidence_id"],
+            ["evidence.org_id", "evidence.asset_id", "evidence.id"],
+        ),
+        ForeignKeyConstraint(["org_id", "linked_by"], ["identities.org_id", "identities.id"]),
     )

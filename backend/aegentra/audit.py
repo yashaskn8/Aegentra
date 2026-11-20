@@ -35,8 +35,8 @@ async def record_event(
     actor_id: UUID,
     event_type: str,
     body: dict,
+    stream: str = "assets",
 ) -> AuditEntry:
-    stream = "assets"
     await session.execute(
         pg_insert(AuditStream)
         .values(org_id=org_id, stream=stream, sequence=0, head_hash=b"\x00" * 32)

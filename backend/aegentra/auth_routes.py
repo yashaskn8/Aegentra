@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from aegentra.asset_store import list_assets
 from aegentra.audit import IdempotencyConflict, register_asset
+from aegentra.case_store import (CaseNotFound, accessible_case, evidence_metadata,
+                                 link_evidence, list_member_cases, register_case)
 from aegentra.auth_store import AuthStore, AuthenticationError, NotEnrolledError, Principal
 from aegentra.oidc import (
     OidcClient, OidcError, OidcSettings, authorization_url,
@@ -28,6 +30,17 @@ class AssetInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     slug: str = Field(min_length=3, max_length=80, pattern=r"^[a-z][a-z0-9-]+$")
     criticality: str = Field(pattern=r"^(LOW|MEDIUM|HIGH)$")
+
+
+class CaseInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    asset_id: UUID
+    title: str = Field(min_length=3, max_length=140)
+
+
+class LinkEvidenceInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    evidence_id: UUID
 
 
 def enable_auth(
@@ -148,6 +161,104 @@ def enable_auth(
             raise HTTPException(status_code=409, detail="asset already exists") from exc
         except IdempotencyConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @router.get("/cases")
+    async def cases(response: Response, user: Principal = Depends(principal)) -> dict:
+        response.headers["Cache-Control"] = "no-store"
+        async with organization_session(sessions, user.org_id) as session:
+            items = await list_member_cases(
+                session, org_id=user.org_id, identity_id=user.identity_id
+            )
+            return {
+                "items": [
+                    {
+                        "id": str(item.id), "asset_id": str(item.asset_id),
+                        "title": item.title, "status": item.status,
+                        "revision": item.revision,
+                    }
+                    for item in items[:100]
+                ],
+                "truncated": len(items) > 100,
+            }
+
+    @router.post("/cases", status_code=201)
+    async def add_case(
+        body: CaseInput,
+        response: Response,
+        idempotency_key: str = Header(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$"),
+        user: Principal = Depends(mutation_principal),
+    ) -> dict:
+        if user.role not in {"ADMIN", "ANALYST"}:
+            raise HTTPException(status_code=403, detail="case creation not permitted")
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                result = await register_case(
+                    session, org_id=user.org_id, identity_id=user.identity_id,
+                    key=idempotency_key, asset_id=body.asset_id, title=body.title,
+                )
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="asset unavailable") from exc
+        except IdempotencyConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @router.get("/cases/{case_id}")
+    async def case_details(
+        case_id: UUID, response: Response,
+        user: Principal = Depends(principal),
+    ) -> dict:
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                item = await accessible_case(
+                    session, org_id=user.org_id, identity_id=user.identity_id,
+                    case_id=case_id,
+                )
+                result = {
+                    "id": str(item.id), "asset_id": str(item.asset_id),
+                    "title": item.title, "status": item.status,
+                    "revision": item.revision,
+                }
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="case unavailable") from exc
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @router.post("/cases/{case_id}/evidence", status_code=201)
+    async def add_case_evidence(
+        case_id: UUID, body: LinkEvidenceInput, response: Response,
+        user: Principal = Depends(mutation_principal),
+    ) -> dict:
+        if user.role not in {"ADMIN", "ANALYST"}:
+            raise HTTPException(status_code=403, detail="case update not permitted")
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                result = await link_evidence(
+                    session, org_id=user.org_id, identity_id=user.identity_id,
+                    case_id=case_id, evidence_id=body.evidence_id,
+                )
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="evidence or case unavailable") from exc
+        except IntegrityError as exc:
+            raise HTTPException(status_code=409, detail="evidence already linked") from exc
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @router.get("/cases/{case_id}/evidence/{evidence_id}/meta")
+    async def case_evidence_meta(
+        case_id: UUID, evidence_id: UUID, response: Response,
+        user: Principal = Depends(principal),
+    ) -> dict:
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                result = await evidence_metadata(
+                    session, org_id=user.org_id, identity_id=user.identity_id,
+                    case_id=case_id, evidence_id=evidence_id,
+                )
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="evidence unavailable") from exc
         response.headers["Cache-Control"] = "no-store"
         return result
 

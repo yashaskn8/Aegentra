@@ -31,3 +31,10 @@ The current database-local audit hash chain is not sufficient against database-a
 - Added a deterministic streaming SHA-256 verifier of server-authorized versioned blobs, with an injectable S3 adapter.
 - These functions **must not process untrusted customer bytes in the API process**. The native offline EC2 guest and independent verifier are still unbuilt/unqualified.
 - See [security release gates](security-release-gates.md) before making protected deployment claims.
+
+## Investigation cases (S1)
+
+- Cases are tenant- and asset-scoped and visible only to explicitly assigned case members.
+- Case creation requires an enrolled ANALYST or ADMIN; it is idempotent and records a transactionally consistent audit/outbox event.
+- A case member can link only existing evidence belonging to the same asset; cross-case and cross-org reads return no metadata.
+- Case membership administration, retention policy, signed source provenance and a real evidence intake pipeline remain outstanding. Tests use synthetic metadata, not submitted hostile files.
