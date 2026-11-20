@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -60,6 +60,13 @@ class VersionPart(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     path: str = Field(min_length=1, max_length=128)
     version_id: str = Field(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9+._/=:-]+$")
+
+    @field_validator("version_id")
+    @classmethod
+    def require_immutable_version(cls, version_id: str) -> str:
+        if version_id == "null":
+            raise ValueError("S3 null version is not immutable evidence")
+        return version_id
 
 
 class FinalizeUploadInput(BaseModel):

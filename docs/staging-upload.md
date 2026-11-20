@@ -27,3 +27,10 @@ Runtime qualification gaps:
 
 Never enable this endpoint on a publicly reachable environment without the
 staging account/IAM, transport, quota and custody controls being reviewed.
+
+Finalization refuses the literal S3 `null` VersionId at both the HTTP
+schema and internal ticket-transition boundaries. This prevents an
+unversioned reference from irreversibly consuming a valid upload ticket;
+only a non-null pinned version may enter the AWAITING_VERIFICATION state.
+It remains an unverified client claim until a separate reader validates the
+actual S3 object, version, length and digest.

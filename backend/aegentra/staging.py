@@ -142,6 +142,13 @@ async def finalize_ticket(
         raise UploadUnavailable("upload unavailable")
     if ticket.content_digest.hex() != content_sha256:
         raise UploadConflict("content digest differs from issued ticket")
+    if any(
+        not isinstance(version, str)
+        or version in ("", "null") or len(version) > 256
+        or re.fullmatch(r"[A-Za-z0-9+._/=:-]+", version) is None
+        for version in versions.values()
+    ):
+        raise UploadConflict("a non-null pinned S3 version is required")
 
     parts = list((await session.scalars(
         select(StagingPart).where(

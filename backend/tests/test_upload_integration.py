@@ -143,6 +143,12 @@ async def _exercise() -> None:
             assert (await client.post(
                 finalize, json={**pin, "parts": []}, headers=headers
             )).status_code == 422
+            # A null S3 VersionId must not irreversibly finalize the ticket.
+            assert (await client.post(
+                finalize, json={**pin, "parts": [
+                    {"path": "main.js", "version_id": "null"}
+                ]}, headers=headers
+            )).status_code == 422
             result = await client.post(finalize, json=pin, headers=headers)
             assert result.status_code == 200, result.text
             assert result.json()["status"] == "AWAITING_VERIFICATION"
