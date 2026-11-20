@@ -35,7 +35,8 @@ class ArtifactPart(BaseModel):
 
 
 class IntakeManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+    # JSON arrays are lists; strict validation remains enabled on each part.
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     parts: tuple[ArtifactPart, ...] = Field(min_length=1, max_length=MAX_PARTS)
 
