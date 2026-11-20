@@ -363,7 +363,7 @@ class GuestAttempt(Base):
         CheckConstraint("octet_length(toolchain_sha256) = 32", name="guest_toolchain_hash"),
         CheckConstraint(
             "state IN ('RESERVED','VOLUMES_RECORDED','INSTANCE_RECORDED',"
-            "'DETACHED_VERIFIED','QUARANTINED','DISPOSED')",
+            "'DETACHED_VERIFIED','DELETE_REQUESTED','QUARANTINED','DISPOSED')",
             name="guest_attempt_state",
         ),
     )

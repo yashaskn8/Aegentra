@@ -1,7 +1,10 @@
 # Native guest physical-disposal verification — S2/S4
 
-A trusted validator receipt is required before retiring a `DETACHED_VERIFIED`
-physical attempt. The bridge retains its original instance and two EBS IDs
+A trusted validator receipt is required before any destructive AWS operation.
+The bridge first commits `DELETE_REQUESTED` and a matching audit/outbox
+entry while retaining all physical IDs. Only a separate native janitor then
+requests deletion; after successful independent inventory reads it can retire
+a `DELETE_REQUESTED` attempt. The bridge retains its original instance and two EBS IDs
 in the immutable resource ledger and records `DISPOSED` with an audit/outbox
 event only after two **time-separated**, bounded AWS inventories agree.
 

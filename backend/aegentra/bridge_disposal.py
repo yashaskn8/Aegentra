@@ -67,6 +67,55 @@ def verify_disposal(
             raise DisposalRejected("EC2/EBS resources still exist or inventory differs")
 
 
+async def begin_guest_disposal(
+    session: AsyncSession, *,
+    org_id: UUID, job_id: UUID, generation: int,
+    actor_id: UUID, now: datetime,
+) -> str:
+    """Commit a durable delete intent BEFORE any AWS DeleteVolume call."""
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise DisposalRejected("trusted bridge clock unavailable")
+    attempt = await session.scalar(
+        select(GuestAttempt).where(
+            GuestAttempt.org_id == org_id, GuestAttempt.job_id == job_id,
+            GuestAttempt.generation == generation,
+        ).with_for_update()
+    )
+    if attempt is None or attempt.state not in {
+        "DETACHED_VERIFIED", "DELETE_REQUESTED",
+    }:
+        raise DisposalRejected("guest not eligible for a delete intent")
+    receipt = await session.scalar(
+        select(ScanReceipt).where(
+            ScanReceipt.org_id == org_id,
+            ScanReceipt.job_id == job_id,
+            ScanReceipt.generation == generation,
+        )
+    )
+    if receipt is None:
+        raise DisposalRejected("trusted advisory receipt is required before deletion")
+    if attempt.state == "DELETE_REQUESTED":
+        return "DELETE_REQUESTED"
+    resources = list((await session.scalars(
+        select(GuestResource).where(
+            GuestResource.org_id == org_id, GuestResource.job_id == job_id,
+            GuestResource.generation == generation,
+        )
+    )).all())
+    if len(resources) != 3 or {
+        item.kind for item in resources
+    } != {"INSTANCE", "INPUT_EBS", "OUTPUT_EBS"}:
+        raise DisposalRejected("cannot delete unjournaled or ambiguous cloud resources")
+    attempt.state = "DELETE_REQUESTED"
+    attempt.updated_at = now
+    await record_event(
+        session, org_id=org_id, actor_id=actor_id, stream="scan",
+        event_type="GUEST_PHYSICAL_DELETE_INTENT",
+        body={"job_id": str(job_id), "generation": generation},
+    )
+    return "DELETE_REQUESTED"
+
+
 async def record_verified_disposal(
     session: AsyncSession, *,
     org_id: UUID, job_id: UUID, generation: int,
@@ -79,7 +128,7 @@ async def record_verified_disposal(
             GuestAttempt.generation == generation,
         ).with_for_update()
     )
-    if attempt is None or attempt.state not in {"DETACHED_VERIFIED", "DISPOSED"}:
+    if attempt is None or attempt.state not in {"DELETE_REQUESTED", "DISPOSED"}:
         raise DisposalRejected("guest is not eligible for verified disposal")
     receipt = await session.scalar(
         select(ScanReceipt).where(

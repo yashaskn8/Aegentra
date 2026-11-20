@@ -16,7 +16,8 @@ from aegentra.bridge_journal import (
     record_verified_detach,
 )
 from aegentra.bridge_disposal import (
-    DeletedInventory, DisposalRejected, record_verified_disposal,
+    DeletedInventory, DisposalRejected, begin_guest_disposal,
+    record_verified_disposal,
 )
 from aegentra.db import (
     Asset, AuditEntry, AuditStream, GuestAttempt, GuestResource, Identity,
@@ -145,6 +146,16 @@ async def exercise() -> None:
                 coverage="VERIFIED", finding_count=0,
                 created_at=now,
             ))
+        # The raw volumes may not be deleted before the delete intent
+        # and advisory receipt are durably committed.
+        async with organization_session(factory, org) as s:
+            assert await begin_guest_disposal(
+                s, **pinned, now=now,
+            ) == "DELETE_REQUESTED"
+        async with organization_session(factory, org) as s:
+            assert await begin_guest_disposal(
+                s, **pinned, now=now,
+            ) == "DELETE_REQUESTED"
         first = DeletedInventory(
             account_id=kwargs["account_id"],
             observed_at=now + timedelta(seconds=30),
