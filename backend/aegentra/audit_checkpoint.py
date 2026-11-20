@@ -114,11 +114,11 @@ def require_reconciled_checkpoint_head(
 
 def verify_archived_checkpoint(
     *, raw: bytes, body: AuditCheckpoint, public_der: bytes,
-    expected_key_id: str, minimum_sequence: int,
-    expected_predecessor_sha256: str, minimum_root_generation: int,
-    now: datetime,
+    expected_key_id: str, org_id: UUID, incarnation: UUID, stream: str,
+    minimum_sequence: int, expected_predecessor_sha256: str,
+    minimum_root_generation: int, now: datetime,
 ) -> str:
-    """Verify canonical archive bytes and the independently pinned signature."""
+    """Verify canonical bytes, pinned signature and externally trusted scope."""
     if not isinstance(raw, bytes) or not 0 < len(raw) <= 16 * 1024:
         raise AuditCheckpointRejected("invalid archived checkpoint size")
     try:
@@ -137,8 +137,8 @@ def verify_archived_checkpoint(
         raise AuditCheckpointRejected("archived checkpoint envelope rejected") from exc
     return verify_checkpoint(
         body=body, signature_der=signature, public_der=public_der,
-        expected_key_id=expected_key_id, org_id=body.org_id,
-        incarnation=body.incarnation, stream=body.stream,
+        expected_key_id=expected_key_id, org_id=org_id,
+        incarnation=incarnation, stream=stream,
         minimum_sequence=minimum_sequence,
         expected_predecessor_sha256=expected_predecessor_sha256,
         minimum_root_generation=minimum_root_generation, now=now,

@@ -170,6 +170,7 @@ def test_archived_checkpoint_requires_canonical_bytes_and_valid_signature():
         return verify_archived_checkpoint(
             raw=value, body=body, public_der=signing_key,
             expected_key_id="security-audit-signing-key",
+            org_id=body.org_id, incarnation=body.incarnation, stream=body.stream,
             minimum_sequence=41, expected_predecessor_sha256="b" * 64,
             minimum_root_generation=3, now=now,
         )
@@ -197,3 +198,24 @@ def test_archived_checkpoint_requires_canonical_bytes_and_valid_signature():
     ):
         with pytest.raises(AuditCheckpointRejected):
             check(corrupted)
+
+
+@pytest.mark.parametrize("wrong_scope", ["org", "incarnation", "stream"])
+def test_archived_checkpoint_rejects_valid_signature_for_wrong_trusted_scope(wrong_scope):
+    body, _, public, signature, now = fixture()
+    trusted = {
+        "org_id": body.org_id,
+        "incarnation": body.incarnation,
+        "stream": body.stream,
+    }
+    trusted[{"org": "org_id"}.get(wrong_scope, wrong_scope)] = (
+        "cases" if wrong_scope == "stream" else uuid4()
+    )
+    with pytest.raises(AuditCheckpointRejected, match="stale or diverges"):
+        verify_archived_checkpoint(
+            raw=signed_checkpoint_bytes(body, signature),
+            body=body, public_der=public,
+            expected_key_id="security-audit-signing-key",
+            minimum_sequence=41, expected_predecessor_sha256="b" * 64,
+            minimum_root_generation=3, now=now, **trusted,
+        )

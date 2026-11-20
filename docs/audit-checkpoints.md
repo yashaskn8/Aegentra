@@ -28,3 +28,8 @@ malformed signed envelopes and verifies their P-256 signature against a pinned
 public key and expected checkpoint context. Consumers should validate the exact
 S3 version with `read_exact` before calling it. Passing both checks is not
 proof of complete independent source acquisition or deployed Object Lock.
+
+The verifier must supply `org_id`, `incarnation`, and `stream` from its
+independently trusted enrollment context. These must never be populated by
+copying fields from the untrusted archived checkpoint: a valid signature
+for one tenant or installation must not validate a different one.
