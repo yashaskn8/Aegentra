@@ -596,3 +596,51 @@ class ReleaseEndorsement(Base):
         CheckConstraint("octet_length(subject_sha256) = 32", name="release_endorsement_subject_length"),
         CheckConstraint("octet_length(signature) = 64", name="release_endorsement_signature_length"),
     )
+
+
+class ReleaseObservation(Base):
+    """Signed independent readback evidence. Not an approval or release fact."""
+
+    __tablename__ = "release_observations"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    incarnation: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    published_revision: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    attempt_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    observer_key_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    cohort: Mapped[str] = mapped_column(String(64), nullable=False)
+    expected_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    observed_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    expected_profile_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    observed_profile_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    http_status: Mapped[int] = mapped_column(Integer, nullable=False)
+    complete_bytes: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    disposition: Mapped[str] = mapped_column(String(24), nullable=False)
+    signed_body: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    signature: Mapped[bytes] = mapped_column(LargeBinary(128), nullable=False)
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "target_id", "published_revision"],
+            [
+                "release_publications.org_id", "release_publications.target_id",
+                "release_publications.published_revision",
+            ],
+        ),
+        CheckConstraint("published_revision > 0", name="observation_revision"),
+        CheckConstraint("attempt_sequence > 0", name="observation_attempt"),
+        CheckConstraint("http_status BETWEEN 100 AND 599", name="observation_http_status"),
+        CheckConstraint(
+            "disposition IN ('MATCH','CURRENT_MISMATCH','COVERAGE_GAP','HISTORICAL')",
+            name="observation_disposition",
+        ),
+        CheckConstraint("octet_length(expected_sha256) = 32", name="observation_expected_hash"),
+        CheckConstraint("octet_length(observed_sha256) = 32", name="observation_observed_hash"),
+        CheckConstraint("octet_length(expected_profile_sha256) = 32", name="observation_expected_profile"),
+        CheckConstraint("octet_length(observed_profile_sha256) = 32", name="observation_observed_profile"),
+        CheckConstraint("octet_length(signature) BETWEEN 8 AND 128", name="observation_signature_size"),
+    )

@@ -31,6 +31,7 @@ jobs:
       AEGENTRA_TEST_BRIDGE_URL: postgresql+asyncpg://aegentra_bridge:ci-bridge-only@127.0.0.1:5432/aegentra_ci
       AEGENTRA_TEST_VALIDATOR_URL: postgresql+asyncpg://aegentra_validator:ci-validator-only@127.0.0.1:5432/aegentra_ci
       AEGENTRA_TEST_RELEASE_URL: postgresql+asyncpg://aegentra_release:ci-release-only@127.0.0.1:5432/aegentra_ci
+      AEGENTRA_TEST_OBSERVER_URL: postgresql+asyncpg://aegentra_observer:ci-observer-only@127.0.0.1:5432/aegentra_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -48,6 +49,7 @@ jobs:
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_bridge LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-bridge-only'"
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_validator LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-validator-only'"
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_release LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-release-only'"
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_observer LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-observer-only'"
           sudo -u postgres createdb aegentra_ci
       - name: Install backend
         working-directory: backend
@@ -67,6 +69,9 @@ jobs:
       - name: Grant separate release-authority database permissions
         run: |
           sudo -u postgres psql -v ON_ERROR_STOP=1 -d aegentra_ci -c "GRANT USAGE ON SCHEMA public TO aegentra_release; GRANT SELECT, UPDATE ON release_org_guards TO aegentra_release; GRANT SELECT, INSERT, UPDATE ON release_targets, release_grants, release_selections TO aegentra_release; GRANT SELECT, INSERT ON release_endorsements TO aegentra_release; GRANT SELECT, INSERT, UPDATE ON release_publications TO aegentra_release; GRANT SELECT, INSERT, UPDATE ON audit_streams TO aegentra_release; GRANT SELECT, INSERT ON audit_entries, outbox_events TO aegentra_release"
+      - name: Grant separate observer-only readback and guard permissions
+        run: |
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -d aegentra_ci -c "GRANT USAGE ON SCHEMA public TO aegentra_observer; GRANT SELECT ON release_org_guards TO aegentra_observer; GRANT SELECT, UPDATE (guard, epoch) ON release_targets TO aegentra_observer; GRANT SELECT ON release_publications TO aegentra_observer; GRANT SELECT, UPDATE (status) ON release_grants TO aegentra_observer; GRANT SELECT, INSERT ON release_observations TO aegentra_observer; GRANT SELECT, INSERT, UPDATE ON audit_streams TO aegentra_observer; GRANT SELECT, INSERT ON audit_entries, outbox_events TO aegentra_observer"
       - name: Verify PostgreSQL isolation
         working-directory: backend
-        run: python -m pytest -q tests/test_pg_integration.py tests/test_auth_integration.py tests/test_case_integration.py tests/test_upload_integration.py tests/test_scan_leases_integration.py tests/test_bridge_journal_integration.py tests/test_scan_receipt_integration.py tests/test_release_state_integration.py tests/test_witness_registration_integration.py
+        run: python -m pytest -q tests/test_pg_integration.py tests/test_auth_integration.py tests/test_case_integration.py tests/test_upload_integration.py tests/test_scan_leases_integration.py tests/test_bridge_journal_integration.py tests/test_scan_receipt_integration.py tests/test_release_state_integration.py tests/test_witness_registration_integration.py tests/test_observation_integration.py
