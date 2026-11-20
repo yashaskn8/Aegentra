@@ -135,6 +135,7 @@ class AuditEntry(Base):
     previous_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     event_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     body_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    payload_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
@@ -142,6 +143,10 @@ class AuditEntry(Base):
         CheckConstraint("octet_length(previous_hash) = 32", name="audit_prev_length"),
         CheckConstraint("octet_length(event_hash) = 32", name="audit_event_length"),
         CheckConstraint("octet_length(body_hash) = 32", name="audit_body_length"),
+        CheckConstraint(
+            "payload_bytes IS NULL OR octet_length(payload_bytes) BETWEEN 1 AND 65536",
+            name="audit_payload_bound",
+        ),
     )
 
 

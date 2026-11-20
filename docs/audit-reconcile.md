@@ -32,3 +32,17 @@ mismatch. The caller must derive that bound independently: copying the last
 sequence in the received batch would defeat the truncation check. Neither
 this option nor the primary database head proves independently complete
 capture, and protected serving remains disabled.
+
+### Canonical audit-payload retention (new records only)
+
+New audit events retain their **exact canonical payload bytes** (bounded to
+64 KiB) alongside the event hash, including actor, event type, UTC timestamp,
+and body. Reconciliation rehashes the bytes and rejects any change to those
+fields, malformed/noncanonical payloads, missing bytes or excessive payloads.
+The database migration deliberately leaves `payload_bytes` nullable for
+legacy rows: the lost pre-migration payload cannot be reconstructed from the
+hash. Those rows now **fail** payload-complete reconciliation and must not be
+treated as independently qualified. No retrospective backfill or silent trust
+upgrade is permitted. External source retention, complete export,
+authorization to create audit checkpoints, and deployed immutability remain
+separate mandatory P0 gates.

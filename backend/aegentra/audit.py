@@ -18,6 +18,9 @@ from aegentra.asset_store import create_asset
 from aegentra.db import AuditEntry, AuditStream, IdempotencyRequest, OutboxEvent
 
 
+MAX_AUDIT_PAYLOAD = 64 * 1024
+
+
 class IdempotencyConflict(Exception):
     pass
 
@@ -50,9 +53,14 @@ async def record_event(
     if head is None:
         raise RuntimeError("audit stream unavailable")
     seq = head.sequence + 1
+    created_at = datetime.now(timezone.utc)
     payload = canonical_bytes({
+        "kind": "aegentra.audit.payload.v2",
         "event_type": event_type, "actor_id": str(actor_id), "body": body,
+        "created_at": created_at.isoformat(timespec="microseconds"),
     })
+    if not 0 < len(payload) <= MAX_AUDIT_PAYLOAD:
+        raise ValueError("audit payload exceeds the retained-byte bound")
     body_hash = hashlib.sha256(payload).digest()
     event_hash = hashlib.sha256(
         b"aegentra.audit.v1\x00"
@@ -63,7 +71,7 @@ async def record_event(
         org_id=org_id, stream=stream, sequence=seq, actor_id=actor_id,
         event_type=event_type, previous_hash=head.head_hash,
         event_hash=event_hash, body_hash=body_hash,
-        created_at=datetime.now(timezone.utc),
+        payload_bytes=payload, created_at=created_at,
     )
     session.add(entry)
     head.sequence = seq
