@@ -319,3 +319,63 @@ class ScanJob(Base):
         CheckConstraint("attempt_generation >= 0", name="scan_job_generation"),
         CheckConstraint("result_sha256 IS NULL OR octet_length(result_sha256) = 32", name="scan_job_result_hash"),
     )
+
+
+class GuestAttempt(Base):
+    """Bridge-owned physical custody record, separate from API and guest output."""
+
+    __tablename__ = "guest_attempts"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    job_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    generation: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    nonce_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    input_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    toolchain_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    account_id: Mapped[str] = mapped_column(String(12), nullable=False)
+    availability_zone: Mapped[str] = mapped_column(String(32), nullable=False)
+    subnet_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    security_group_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    kms_key_arn: Mapped[str] = mapped_column(String(256), nullable=False)
+    state: Mapped[str] = mapped_column(String(24), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "job_id"], ["scan_jobs.org_id", "scan_jobs.id"]),
+        CheckConstraint("generation > 0", name="guest_generation_positive"),
+        CheckConstraint("octet_length(nonce_sha256) = 32", name="guest_nonce_hash"),
+        CheckConstraint("octet_length(input_sha256) = 32", name="guest_input_hash"),
+        CheckConstraint("octet_length(toolchain_sha256) = 32", name="guest_toolchain_hash"),
+        CheckConstraint(
+            "state IN ('RESERVED','VOLUMES_RECORDED','INSTANCE_RECORDED',"
+            "'DETACHED_VERIFIED','QUARANTINED','DISPOSED')",
+            name="guest_attempt_state",
+        ),
+    )
+
+
+class GuestResource(Base):
+    """Never-reused AWS physical ID, unique across roles and all organizations."""
+
+    __tablename__ = "guest_resources"
+
+    resource_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    job_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "job_id", "generation"],
+            ["guest_attempts.org_id", "guest_attempts.job_id", "guest_attempts.generation"],
+        ),
+        UniqueConstraint(
+            "org_id", "job_id", "generation", "kind",
+            name="uq_guest_resource_per_attempt_kind",
+        ),
+        CheckConstraint(
+            "kind IN ('INPUT_EBS','OUTPUT_EBS','INSTANCE')", name="guest_resource_kind",
+        ),
+    )

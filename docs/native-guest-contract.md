@@ -33,3 +33,21 @@ Implemented in this increment:
 Do not enable processing of adversarial customer files on a shared host or
 the API process. All CI tests here use inert local fixtures. Guest output
 returns **advisory only** and must never authorize publication.
+
+## Additional native bridge custody implementation
+
+Migration 0007 adds an organization-scoped guest attempt ledger plus a globally
+unique physical resource-ID ledger, preventing accidental reuse of an EBS or
+instance ID in another attempt. A distinct, non-owner PostgreSQL bridge role
+can record attempts, physical resources and audit/outbox events. The ordinary
+application role receives **no access** to either ledger.
+
+The bridge records a generation/nonce checked against the live scan lease,
+then records both EBS IDs and EC2 ID in distinct committed stages. It will not
+accept a detached record until both inventory snapshots match the original
+job/account/AZ/instance/volume identity and show a terminated guest and fully
+detached encrypted volumes. The state machine supports quarantine.
+
+The actual EC2 launch, two-pass independently timed observations, IAM
+constraints, janitor deletion and live reachability tests remain separate
+release-blocking integration tasks. The CI inventory is synthetic.
