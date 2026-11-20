@@ -1,0 +1,20 @@
+{
+  "name": "aegentra-native-infra",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "node -r ts-node/register --test test/*.test.ts",
+    "synth": "cdk synth --quiet"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.220.0",
+    "constructs": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "aws-cdk": "^2.1030.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.0"
+  }
+}

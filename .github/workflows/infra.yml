@@ -1,0 +1,26 @@
+name: AWS CDK native synthesis
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+
+jobs:
+  synth:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install CDK dependencies (no containers)
+        run: npm install --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run build
+      - name: Assert infrastructure isolation properties
+        run: npm test
+      - name: Synthesize CloudFormation only
+        run: npm run synth
