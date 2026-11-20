@@ -410,3 +410,175 @@ class ScanReceipt(Base):
         CheckConstraint("coverage IN ('VERIFIED','UNKNOWN','UNSUPPORTED')", name="scan_receipt_coverage"),
         CheckConstraint("finding_count BETWEEN 0 AND 2000", name="scan_receipt_finding_count"),
     )
+
+
+class ReleaseOrgGuard(Base):
+    """Single serialized guard for an installation's release-affecting state."""
+
+    __tablename__ = "release_org_guards"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    incarnation: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    epoch: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organizations.id"]),
+        CheckConstraint("epoch > 0", name="release_org_epoch_positive"),
+    )
+
+
+class ReleaseTarget(Base):
+    __tablename__ = "release_targets"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    asset_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    destination_host: Mapped[str] = mapped_column(String(253), nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False, default="SHADOW")
+    guard: Mapped[str] = mapped_column(String(24), nullable=False, default="ACTIVE")
+    epoch: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
+    next_attempt_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    published_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    published_attempt_sequence: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["release_org_guards.org_id"]),
+        ForeignKeyConstraint(["org_id", "asset_id"], ["assets.org_id", "assets.id"]),
+        CheckConstraint("mode IN ('SHADOW','ENFORCED','RETIRED')", name="release_target_mode"),
+        CheckConstraint(
+            "guard IN ('ACTIVE','HOLD_PROMOTION','STOP_SERVING')",
+            name="release_target_guard",
+        ),
+        CheckConstraint("epoch > 0", name="release_target_epoch_positive"),
+        CheckConstraint("next_attempt_sequence >= 0", name="release_attempt_sequence_nonnegative"),
+        CheckConstraint("published_revision >= 0", name="release_published_revision_nonnegative"),
+    )
+
+
+class ReleaseGrant(Base):
+    __tablename__ = "release_grants"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    nonce_hash: Mapped[bytes] = mapped_column(LargeBinary(32), primary_key=True)
+    subject_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    subject_body: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    approval_set_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    incarnation: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    org_epoch: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    target_epoch: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    expected_prior_revision: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    selection_sequence: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "target_id"], ["release_targets.org_id", "release_targets.id"]
+        ),
+        CheckConstraint("octet_length(nonce_hash) = 32", name="release_grant_nonce_length"),
+        CheckConstraint("octet_length(subject_sha256) = 32", name="release_grant_subject_length"),
+        CheckConstraint("octet_length(approval_set_sha256) = 32", name="release_grant_approval_length"),
+        CheckConstraint(
+            "status IN ('GRANTED','REDEEMED','CANCELED','EXPIRED')",
+            name="release_grant_status",
+        ),
+    )
+
+
+class ReleaseSelection(Base):
+    """Never-recycled attempt sequence, not a published revision."""
+
+    __tablename__ = "release_selections"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    attempt_sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    grant_nonce_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    subject_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    staging_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    prior_published_revision: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    witness_version_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    witness_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32), nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "target_id", "grant_nonce_hash"],
+            ["release_grants.org_id", "release_grants.target_id", "release_grants.nonce_hash"],
+        ),
+        UniqueConstraint(
+            "org_id", "target_id", "grant_nonce_hash",
+            name="uq_release_selection_grant",
+        ),
+        CheckConstraint("attempt_sequence > 0", name="release_attempt_positive"),
+        CheckConstraint("octet_length(subject_sha256) = 32", name="release_selection_subject_length"),
+        CheckConstraint("octet_length(staging_sha256) = 32", name="release_selection_staging_length"),
+        CheckConstraint(
+            "witness_sha256 IS NULL OR octet_length(witness_sha256) = 32",
+            name="release_selection_witness_length",
+        ),
+        CheckConstraint(
+            "state IN ('SELECTED_UNWITNESSED','WITNESSED','PUBLISHED','CANCELED','EXPIRED')",
+            name="release_selection_state",
+        ),
+    )
+
+
+class ReleasePublication(Base):
+    __tablename__ = "release_publications"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    published_revision: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    attempt_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    witness_version_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    witness_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    representation_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    delivery_profile_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "target_id", "attempt_sequence"],
+            ["release_selections.org_id", "release_selections.target_id", "release_selections.attempt_sequence"],
+        ),
+        UniqueConstraint(
+            "org_id", "target_id", "attempt_sequence",
+            name="uq_publication_for_selection",
+        ),
+        CheckConstraint("published_revision > 0", name="release_revision_positive"),
+        CheckConstraint("octet_length(witness_sha256) = 32", name="release_publication_witness_length"),
+        CheckConstraint("octet_length(representation_sha256) = 32", name="release_publication_bytes_length"),
+        CheckConstraint("octet_length(delivery_profile_sha256) = 32", name="release_publication_profile_length"),
+    )
+
+
+class ReleaseEndorsement(Base):
+    """Consumed reviewer challenge and immutable signed endorsement evidence."""
+
+    __tablename__ = "release_endorsements"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    challenge_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), primary_key=True)
+    subject_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    person_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    key_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    custody_group: Mapped[str] = mapped_column(String(64), nullable=False)
+    enrollment_generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    signed_body: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    signature: Mapped[bytes] = mapped_column(LargeBinary(64), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "target_id"], ["release_targets.org_id", "release_targets.id"]),
+        UniqueConstraint("org_id", "subject_sha256", "person_id", name="uq_release_endorsement_person"),
+        UniqueConstraint("org_id", "subject_sha256", "key_id", name="uq_release_endorsement_key"),
+        CheckConstraint("octet_length(challenge_sha256) = 32", name="release_endorsement_nonce_length"),
+        CheckConstraint("octet_length(subject_sha256) = 32", name="release_endorsement_subject_length"),
+        CheckConstraint("octet_length(signature) = 64", name="release_endorsement_signature_length"),
+    )
