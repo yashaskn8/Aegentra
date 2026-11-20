@@ -266,16 +266,27 @@ def test_digest_addressed_script_is_served_with_hash_only_csp():
 
 
 def test_gateway_refuses_unreviewed_html_and_wrong_js_bytes_before_veto():
+    def update_synthetic_witness(fixture):
+        # Even if the signed head and witness now describe the tampered
+        # representation, enrollment cannot authorize a non-template file.
+        fixture.cert = fixture.cert.model_copy(update={
+            "content_sha256": hashlib.sha256(fixture.content).hexdigest(),
+        })
+        signature = fixture.witness_signer.sign(
+            witness_message(fixture.cert), ec.ECDSA(hashes.SHA256()),
+        )
+        fixture.cert_raw = signed_certificate_bytes(fixture.cert, signature)
+
     html = Fixture()
     html.content = b'<!doctype html><script src="/unreviewed.js"></script>'
-    # Fixture signed hash now describes adversarial HTML, but the fixed
-    # independently enrolled template check still denies it.
+    update_synthetic_witness(html)
     with pytest.raises(AdmissionDenied, match="unqualified"):
         asyncio.run(html.check())
     assert html.veto_calls == []
 
     js = Fixture(script_route=True)
     js.content = b"const answer = 43;"
+    update_synthetic_witness(js)
     with pytest.raises(AdmissionDenied, match="unqualified"):
         asyncio.run(js.check())
     assert js.veto_calls == []
