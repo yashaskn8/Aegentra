@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hmac
 from uuid import UUID
+from pydantic import ValidationError
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
@@ -12,6 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from aegentra.asset_store import list_assets
 from aegentra.audit import IdempotencyConflict, register_asset
+from aegentra.content_manifest import ManifestError, parse_manifest_json
+from aegentra.staging import UploadConflict, UploadUnavailable, create_ticket, finalize_ticket
+from aegentra.staging_signer import StagingSigner
 from aegentra.case_store import (CaseNotFound, accessible_case, evidence_metadata,
                                  link_evidence, list_member_cases, register_case)
 from aegentra.auth_store import AuthStore, AuthenticationError, NotEnrolledError, Principal
@@ -43,12 +47,25 @@ class LinkEvidenceInput(BaseModel):
     evidence_id: UUID
 
 
+class VersionPart(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    path: str = Field(min_length=1, max_length=128)
+    version_id: str = Field(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9+._/=:-]+$")
+
+
+class FinalizeUploadInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    parts: tuple[VersionPart, ...] = Field(min_length=1, max_length=64)
+
+
 def enable_auth(
     app: FastAPI,
     *,
     settings: OidcSettings,
     sessions: async_sessionmaker[AsyncSession],
     provider: OidcClient,
+    signer: StagingSigner | None = None,
 ) -> None:
     store = AuthStore(sessions)
     router = APIRouter(prefix="/v1")
@@ -261,5 +278,79 @@ def enable_auth(
             raise HTTPException(status_code=404, detail="evidence unavailable") from exc
         response.headers["Cache-Control"] = "no-store"
         return result
+
+    # Without an explicitly configured, scoped S3 staging signer there is
+    # no upload endpoint or false appearance of functioning evidence intake.
+    if signer is not None:
+
+        @router.post("/assets/{asset_id}/uploads", status_code=201)
+        async def issue_upload(
+            asset_id: UUID, request: Request, response: Response,
+            idempotency_key: str = Header(
+                min_length=8, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$"
+            ),
+            user: Principal = Depends(mutation_principal),
+        ) -> dict:
+            if user.role not in {"ADMIN", "EDITOR"}:
+                raise HTTPException(status_code=403, detail="upload not permitted")
+            raw = bytearray()
+            async for chunk in request.stream():
+                if len(raw) + len(chunk) > 100_000:
+                    raise HTTPException(status_code=413, detail="manifest too large")
+                raw.extend(chunk)
+            try:
+                manifest = parse_manifest_json(bytes(raw))
+            except (ManifestError, ValidationError) as exc:
+                raise HTTPException(status_code=422, detail="invalid content manifest") from exc
+            try:
+                async with organization_session(sessions, user.org_id) as session:
+                    result = await create_ticket(
+                        session, org_id=user.org_id, actor_id=user.identity_id,
+                        asset_id=asset_id, idempotency_key=idempotency_key,
+                        manifest=manifest,
+                    )
+            except UploadUnavailable as exc:
+                raise HTTPException(status_code=404, detail="asset unavailable") from exc
+            except IdempotencyConflict as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            response.headers["Cache-Control"] = "no-store"
+            if result["status"] == "ISSUED":
+                # No network call while DB locks are held.
+                result = {**result, "signed_parts": [
+                    {
+                        "path": part["path"],
+                        **signer.issue(
+                            key=part["object_key"], sha256=part["sha256"],
+                            byte_length=part["byte_length"],
+                            media_type=part["media_type"],
+                        ).__dict__,
+                    }
+                    for part in result["parts"]
+                ]}
+            return result
+
+        @router.post("/uploads/{upload_id}/finalize")
+        async def finalize_upload(
+            upload_id: UUID, body: FinalizeUploadInput, response: Response,
+            user: Principal = Depends(mutation_principal),
+        ) -> dict:
+            if user.role not in {"ADMIN", "EDITOR"}:
+                raise HTTPException(status_code=403, detail="upload not permitted")
+            versions = {part.path: part.version_id for part in body.parts}
+            if len(versions) != len(body.parts):
+                raise HTTPException(status_code=422, detail="duplicate logical path")
+            try:
+                async with organization_session(sessions, user.org_id) as session:
+                    result = await finalize_ticket(
+                        session, org_id=user.org_id, actor_id=user.identity_id,
+                        upload_id=upload_id, content_sha256=body.content_sha256,
+                        versions=versions,
+                    )
+            except UploadUnavailable as exc:
+                raise HTTPException(status_code=404, detail="upload unavailable") from exc
+            except UploadConflict as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            response.headers["Cache-Control"] = "no-store"
+            return result
 
     app.include_router(router)

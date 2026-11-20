@@ -7,6 +7,7 @@ from aegentra.oidc import OidcClient, OidcSettings
 from pydantic import BaseModel
 
 from aegentra.intake import IntakeManifest
+from aegentra.staging_signer import StagingSigner
 
 
 class ShadowValidation(BaseModel):
@@ -22,6 +23,7 @@ def create_app(
     settings: OidcSettings | None = None,
     sessions: async_sessionmaker[AsyncSession] | None = None,
     provider: OidcClient | None = None,
+    staging_signer: StagingSigner | None = None,
     lifespan=None,
 ) -> FastAPI:
     app = FastAPI(
@@ -53,7 +55,7 @@ def create_app(
         if settings is None or sessions is None or provider is None:
             raise ValueError("auth settings, database sessions and OIDC provider must be configured together")
         from aegentra.auth_routes import enable_auth
-        enable_auth(app, settings=settings, sessions=sessions, provider=provider)
+        enable_auth(app, settings=settings, sessions=sessions, provider=provider, signer=staging_signer)
 
     return app
 

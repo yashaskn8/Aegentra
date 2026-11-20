@@ -240,3 +240,53 @@ class CaseEvidence(Base):
         ),
         ForeignKeyConstraint(["org_id", "linked_by"], ["identities.org_id", "identities.id"]),
     )
+
+
+class StagingUpload(Base):
+    """Declared, untrusted staging metadata; never a signed artifact."""
+
+    __tablename__ = "staging_uploads"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    asset_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    issued_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    content_digest: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    content_manifest: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "asset_id"], ["assets.org_id", "assets.id"]),
+        ForeignKeyConstraint(["org_id", "issued_by"], ["identities.org_id", "identities.id"]),
+        CheckConstraint("octet_length(content_digest) = 32", name="staging_content_digest_length"),
+        CheckConstraint(
+            "status IN ('ISSUED', 'AWAITING_VERIFICATION', 'REJECTED')",
+            name="staging_status",
+        ),
+    )
+
+
+class StagingPart(Base):
+    __tablename__ = "staging_parts"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    upload_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    part_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    path: Mapped[str] = mapped_column(String(128), nullable=False)
+    content_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    byte_length: Mapped[int] = mapped_column(Integer, nullable=False)
+    media_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    version_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "upload_id"], ["staging_uploads.org_id", "staging_uploads.id"]
+        ),
+        UniqueConstraint("org_id", "upload_id", "path", name="uq_staging_path"),
+        UniqueConstraint("org_id", "upload_id", "object_key", name="uq_staging_key"),
+        CheckConstraint("octet_length(content_sha256) = 32", name="staging_part_digest_length"),
+        CheckConstraint("byte_length > 0 AND byte_length <= 10485760", name="staging_part_length"),
+    )
