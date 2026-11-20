@@ -29,6 +29,7 @@ jobs:
       AEGENTRA_TEST_ADMIN_URL: postgresql+asyncpg://postgres:ci-admin-only@127.0.0.1:5432/aegentra_ci
       AEGENTRA_TEST_APP_URL: postgresql+asyncpg://aegentra_app:ci-app-only@127.0.0.1:5432/aegentra_ci
       AEGENTRA_TEST_BRIDGE_URL: postgresql+asyncpg://aegentra_bridge:ci-bridge-only@127.0.0.1:5432/aegentra_ci
+      AEGENTRA_TEST_VALIDATOR_URL: postgresql+asyncpg://aegentra_validator:ci-validator-only@127.0.0.1:5432/aegentra_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,6 +45,7 @@ jobs:
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER ROLE postgres WITH PASSWORD 'ci-admin-only'"
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-app-only'"
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_bridge LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-bridge-only'"
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE aegentra_validator LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD 'ci-validator-only'"
           sudo -u postgres createdb aegentra_ci
       - name: Install backend
         working-directory: backend
@@ -57,6 +59,9 @@ jobs:
       - name: Grant bridge-only custody and audit permissions
         run: |
           sudo -u postgres psql -v ON_ERROR_STOP=1 -d aegentra_ci -c "GRANT USAGE ON SCHEMA public TO aegentra_bridge; GRANT SELECT, UPDATE ON scan_jobs TO aegentra_bridge; GRANT SELECT, INSERT, UPDATE ON guest_attempts TO aegentra_bridge; GRANT SELECT, INSERT ON guest_resources TO aegentra_bridge; GRANT SELECT, INSERT, UPDATE ON audit_streams TO aegentra_bridge; GRANT SELECT, INSERT ON audit_entries, outbox_events TO aegentra_bridge"
+      - name: Grant separate validator-only receipt permissions
+        run: |
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -d aegentra_ci -c "GRANT USAGE ON SCHEMA public TO aegentra_validator; GRANT SELECT, UPDATE ON scan_jobs TO aegentra_validator; GRANT SELECT ON guest_attempts TO aegentra_validator; GRANT SELECT, INSERT ON scan_receipts TO aegentra_validator; GRANT SELECT, INSERT, UPDATE ON audit_streams TO aegentra_validator; GRANT SELECT, INSERT ON audit_entries, outbox_events TO aegentra_validator"
       - name: Verify PostgreSQL isolation
         working-directory: backend
-        run: python -m pytest -q tests/test_pg_integration.py tests/test_auth_integration.py tests/test_case_integration.py tests/test_upload_integration.py tests/test_scan_leases_integration.py tests/test_bridge_journal_integration.py
+        run: python -m pytest -q tests/test_pg_integration.py tests/test_auth_integration.py tests/test_case_integration.py tests/test_upload_integration.py tests/test_scan_leases_integration.py tests/test_bridge_journal_integration.py tests/test_scan_receipt_integration.py

@@ -379,3 +379,34 @@ class GuestResource(Base):
             "kind IN ('INPUT_EBS','OUTPUT_EBS','INSTANCE')", name="guest_resource_kind",
         ),
     )
+
+
+class ScanReceipt(Base):
+    """Validator-issued advisory receipt. Not a signed release predicate."""
+
+    __tablename__ = "scan_receipts"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    job_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    generation: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    result_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    source_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    toolchain_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    coverage: Mapped[str] = mapped_column(String(16), nullable=False)
+    finding_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "job_id", "generation"],
+            ["guest_attempts.org_id", "guest_attempts.job_id", "guest_attempts.generation"],
+        ),
+        CheckConstraint("octet_length(result_sha256) = 32", name="scan_receipt_result_hash"),
+        CheckConstraint("octet_length(source_sha256) = 32", name="scan_receipt_source_hash"),
+        CheckConstraint("octet_length(toolchain_sha256) = 32", name="scan_receipt_toolchain_hash"),
+        CheckConstraint("status IN ('COMPLETE','INCOMPLETE')", name="scan_receipt_status"),
+        CheckConstraint("coverage IN ('VERIFIED','UNKNOWN','UNSUPPORTED')", name="scan_receipt_coverage"),
+        CheckConstraint("finding_count BETWEEN 0 AND 2000", name="scan_receipt_finding_count"),
+    )
