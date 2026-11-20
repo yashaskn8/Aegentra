@@ -159,3 +159,56 @@ def test_invalid_or_replayed_bundle_proof_is_rejected(change):
         args[1] = args[1].model_copy(update={"audience": "other-review"})
     with pytest.raises((BundleRejected, ValueError)):
         checked(*args)
+
+
+def test_review_intent_requires_same_signed_two_object_manifest():
+    from aegentra.review_crypto import ReviewSubject
+    from aegentra.fixed_bundle import verify_review_subject_bundle
+
+    verified, body, sig, pub, org, target, inc, now, signer = signed_fixture()
+    record_sha = checked(
+        verified, body, sig, pub, org, target, inc, now, signer,
+    )
+    html = verified.profile.generated_html()
+    headers = verified.profile.headers(
+        path=verified.profile.entry_path, content=html,
+    )
+    import rfc8785
+    profile_sha = hashlib.sha256(
+        b"aegentra.delivery.profile.v1\x00" + rfc8785.dumps(headers)
+    ).hexdigest()
+    subject = ReviewSubject(
+        kind="aegentra.review.subject.v1",
+        incarnation=inc, org_id=org, asset_id=uuid4(), target_id=target,
+        destination_host=verified.profile.host,
+        resource_path=verified.profile.entry_path,
+        content_sha256=hashlib.sha256(html).hexdigest(),
+        independent_bytes_sha256=hashlib.sha256(html).hexdigest(),
+        storage_sha256=verified.storage_manifest_sha256,
+        delivery_profile_sha256=profile_sha,
+        fixed_bundle_sha256=verified.bundle_manifest_sha256,
+        source_attestation_sha256=record_sha,
+        scan_receipt_sha256="1" * 64, policy_sha256="2" * 64,
+        baseline_sha256="3" * 64, change_request_sha256="4" * 64,
+        baseline_revision=1, prior_published_revision=0,
+        org_epoch=1, target_epoch=1, submitter_person_id=uuid4(),
+    )
+    args = dict(
+        subject=subject, body=body, signature_der=sig,
+        verified=verified, pinned_verifier_public_der=pub,
+        expected_verifier_key_id="independent-bundle-verifier",
+        now=now,
+    )
+    assert verify_review_subject_bundle(**args) == record_sha
+    for changed in (
+        {"fixed_bundle_sha256": "7" * 64},
+        {"source_attestation_sha256": "8" * 64},
+        {"storage_sha256": "9" * 64},
+        {"delivery_profile_sha256": "a" * 64},
+        {"content_sha256": "b" * 64, "independent_bytes_sha256": "b" * 64},
+        {"resource_path": verified.profile.script_path},
+    ):
+        with pytest.raises(BundleRejected):
+            verify_review_subject_bundle(**{
+                **args, "subject": subject.model_copy(update=changed),
+            })

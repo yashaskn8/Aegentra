@@ -556,6 +556,7 @@ class ReleasePublication(Base):
     witness_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     representation_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     delivery_profile_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    fixed_bundle_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     origin_bucket: Mapped[str | None] = mapped_column(String(63), nullable=True)
     origin_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
@@ -577,6 +578,10 @@ class ReleasePublication(Base):
         CheckConstraint("octet_length(witness_sha256) = 32", name="release_publication_witness_length"),
         CheckConstraint("octet_length(representation_sha256) = 32", name="release_publication_bytes_length"),
         CheckConstraint("octet_length(delivery_profile_sha256) = 32", name="release_publication_profile_length"),
+        CheckConstraint(
+            "fixed_bundle_sha256 IS NULL OR octet_length(fixed_bundle_sha256) = 32",
+            name="release_publication_bundle_hash",
+        ),
         CheckConstraint("status IN ('PENDING_SEAL','SEALED')", name="release_publication_status"),
         CheckConstraint(
             "receipt_sha256 IS NULL OR octet_length(receipt_sha256) = 32",

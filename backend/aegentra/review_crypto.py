@@ -54,6 +54,7 @@ class ReviewSubject(BaseModel):
     storage_sha256: str = Field(pattern=_HEX)
     independent_bytes_sha256: str = Field(pattern=_HEX)
     delivery_profile_sha256: str = Field(pattern=_HEX)
+    fixed_bundle_sha256: str = Field(pattern=_HEX)
     policy_sha256: str = Field(pattern=_HEX)
     baseline_sha256: str = Field(pattern=_HEX)
     source_attestation_sha256: str = Field(pattern=_HEX)

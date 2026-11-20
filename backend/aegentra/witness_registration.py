@@ -112,6 +112,7 @@ async def witness_committed_selection(
         staging_sha256=selection.staging_sha256.hex(),
         content_sha256=subject.content_sha256,
         delivery_profile_sha256=subject.delivery_profile_sha256,
+        fixed_bundle_sha256=subject.fixed_bundle_sha256,
         predecessor_witness_sha256=earlier_witness,
         selected_at=selection.created_at,
         expires_at=selection.expires_at,

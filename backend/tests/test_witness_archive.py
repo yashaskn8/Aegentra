@@ -52,7 +52,7 @@ def body():
         predecessor_witness_sha256="0" * 64,
         subject_sha256="1" * 64, approval_set_sha256="2" * 64,
         staging_sha256="3" * 64, content_sha256="4" * 64,
-        delivery_profile_sha256="5" * 64,
+        delivery_profile_sha256="5" * 64, fixed_bundle_sha256="9" * 64,
         security_root_generation=1,
         selection_deadline=now + timedelta(seconds=50), issued_at=now,
     )

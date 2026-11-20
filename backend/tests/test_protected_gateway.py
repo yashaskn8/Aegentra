@@ -72,6 +72,7 @@ class Fixture:
             delivery_profile_sha256=delivery_profile_sha256(
                 delivery_headers(self.resource, self.content)
             ),
+            fixed_bundle_sha256=self.resource.fixed_profile.manifest_sha256(),
             security_root_generation=4,
             issued_at=self.now - timedelta(seconds=1),
             selection_deadline=self.now + timedelta(seconds=90),
@@ -104,6 +105,7 @@ class Fixture:
             attempt_sequence=3,
             content_sha256=hashlib.sha256(self.content).hexdigest(),
             delivery_profile_sha256=self.cert.delivery_profile_sha256,
+            fixed_bundle_sha256=self.cert.fixed_bundle_sha256,
             witness_bucket=self.resource.witness_bucket,
             witness_key=(
                 f"certificates/v1/{self.resource.org_id.hex}/"
@@ -290,3 +292,37 @@ def test_gateway_refuses_unreviewed_html_and_wrong_js_bytes_before_veto():
     with pytest.raises(AdmissionDenied, match="unqualified"):
         asyncio.run(js.check())
     assert js.veto_calls == []
+
+
+def test_signed_head_cannot_switch_the_enrolled_bundle_digest():
+    f = Fixture()
+    original_head = f.head
+
+    async def wrong_bundle(nonce):
+        original = await original_head(nonce)
+        changed = original.body.model_copy(update={
+            "fixed_bundle_sha256": "a" * 64,
+        })
+        signature = f.head_signer.sign(
+            head_message(changed), ec.ECDSA(hashes.SHA256()),
+        )
+        return SignedHead(changed, signature)
+
+    f.head = wrong_bundle
+    with pytest.raises(AdmissionDenied, match="pinned immutable storage"):
+        asyncio.run(f.check())
+    assert f.body_calls == 0
+    assert not f.veto_calls
+
+
+def test_valid_witness_signature_for_another_bundle_is_rejected():
+    f = Fixture()
+    f.cert = f.cert.model_copy(update={"fixed_bundle_sha256": "b" * 64})
+    signature = f.witness_signer.sign(
+        witness_message(f.cert), ec.ECDSA(hashes.SHA256()),
+    )
+    f.cert_raw = signed_certificate_bytes(f.cert, signature)
+    with pytest.raises(AdmissionDenied, match="witness not bound"):
+        asyncio.run(f.check())
+    assert f.body_calls == 0
+    assert not f.veto_calls

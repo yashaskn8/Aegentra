@@ -41,6 +41,7 @@ class WitnessBody(BaseModel):
     staging_sha256: str = Field(pattern=_HEX)
     content_sha256: str = Field(pattern=_HEX)
     delivery_profile_sha256: str = Field(pattern=_HEX)
+    fixed_bundle_sha256: str = Field(pattern=_HEX)
     security_root_generation: int = Field(strict=True, gt=0)
     selection_deadline: datetime
     issued_at: datetime
@@ -68,6 +69,7 @@ class WitnessSelection:
     staging_sha256: str
     content_sha256: str
     delivery_profile_sha256: str
+    fixed_bundle_sha256: str
     predecessor_witness_sha256: str
     selected_at: datetime
     expires_at: datetime
@@ -121,6 +123,7 @@ def verify_witness_certificate(
         or body.staging_sha256 != selection.staging_sha256
         or body.content_sha256 != selection.content_sha256
         or body.delivery_profile_sha256 != selection.delivery_profile_sha256
+        or body.fixed_bundle_sha256 != selection.fixed_bundle_sha256
         or body.predecessor_witness_sha256 != selection.predecessor_witness_sha256
         or body.selection_deadline != selection.expires_at
         or body.issued_at < selection.selected_at

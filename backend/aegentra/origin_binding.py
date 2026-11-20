@@ -37,6 +37,7 @@ class OriginBinding(BaseModel):
     origin_version_id: str = Field(min_length=1, max_length=256)
     content_sha256: str = Field(pattern=_HEX)
     delivery_profile_sha256: str = Field(pattern=_HEX)
+    fixed_bundle_sha256: str = Field(pattern=_HEX)
     signer_key_id: str = Field(min_length=3, max_length=128)
     issued_at: datetime
     expires_at: datetime
@@ -66,6 +67,7 @@ def verify_origin_binding(
         or binding.resource_path != subject.resource_path
         or binding.content_sha256 != subject.content_sha256
         or binding.delivery_profile_sha256 != subject.delivery_profile_sha256
+        or binding.fixed_bundle_sha256 != subject.fixed_bundle_sha256
         or binding.origin_bucket != enrolled_bucket
         or not binding.origin_key.startswith(enrolled_key_prefix)
         or not enrolled_key_prefix.startswith("published/")

@@ -38,7 +38,7 @@ def fixture():
         org_id=org, target_id=target_id, attempt_sequence=1,
         published_revision=1, witness_version_id="object-v1",
         witness_sha256=b"w" * 32, representation_sha256=b"b" * 32,
-        delivery_profile_sha256=b"p" * 32, created_at=timestamp,
+        delivery_profile_sha256=b"p" * 32, fixed_bundle_sha256=b"q" * 32, created_at=timestamp,
         status="SEALED", receipt_version_id="receipt-v1",
         receipt_sha256=b"r" * 32, origin_bucket="pinned-origin",
         origin_key="published/trusted/html",
@@ -71,7 +71,7 @@ def test_kms_signs_fresh_head_with_distinct_pinned_key():
 
 @pytest.mark.parametrize("change", [
     "shadow", "stop", "unsealed", "old_revision", "wrong_bucket",
-    "missing_receipt", "missing_origin",
+    "missing_receipt", "missing_origin", "missing_bundle",
 ])
 def test_protected_head_fails_closed_when_release_unqualified(change):
     root, target, publication, now = fixture()
@@ -87,6 +87,8 @@ def test_protected_head_fails_closed_when_release_unqualified(change):
         publication.origin_bucket = "other-bucket"
     elif change == "missing_receipt":
         publication.receipt_version_id = None
+    elif change == "missing_bundle":
+        publication.fixed_bundle_sha256 = None
     else:
         publication.origin_version_id = None
     with pytest.raises(ReleaseConflict):

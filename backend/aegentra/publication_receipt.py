@@ -34,6 +34,7 @@ class PublicationReceipt(BaseModel):
     witness_sha256: str = Field(pattern=_HEX)
     representation_sha256: str = Field(pattern=_HEX)
     delivery_profile_sha256: str = Field(pattern=_HEX)
+    fixed_bundle_sha256: str = Field(pattern=_HEX)
     origin_bucket: str = Field(min_length=3, max_length=63)
     origin_key: str = Field(min_length=1, max_length=256)
     origin_version_id: str = Field(min_length=1, max_length=256)
@@ -74,6 +75,8 @@ def verify_publication_receipt(
         or body.witness_sha256 != publication.witness_sha256.hex()
         or body.representation_sha256 != publication.representation_sha256.hex()
         or body.delivery_profile_sha256 != publication.delivery_profile_sha256.hex()
+        or publication.fixed_bundle_sha256 is None
+        or body.fixed_bundle_sha256 != publication.fixed_bundle_sha256.hex()
         or body.origin_bucket != publication.origin_bucket
         or body.origin_key != publication.origin_key
         or body.origin_version_id != publication.origin_version_id

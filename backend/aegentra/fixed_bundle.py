@@ -201,3 +201,48 @@ def verify_fixed_bundle_attestation(
             "signature_der_hex": signature_der.hex(),
         })
     ).hexdigest()
+
+
+def verify_review_subject_bundle(
+    *, subject: "ReviewSubject", body: FixedBundleAttestation,
+    signature_der: bytes, verified: VerifiedFixedBundle,
+    pinned_verifier_public_der: bytes, expected_verifier_key_id: str,
+    now: datetime,
+) -> str:
+    """Bind an immutable review subject to independently rehashed HTML+JS.
+
+    The protected reference subject identifies the fixed HTML entry and
+    includes the two-object manifest via its separately signed source proof.
+    A separate per-resource script head is still required for actual serving.
+    """
+    from aegentra.review_crypto import ReviewSubject
+
+    if not isinstance(subject, ReviewSubject):
+        raise BundleRejected("review subject type invalid")
+    attestation_digest = verify_fixed_bundle_attestation(
+        body=body, signature_der=signature_der, verified=verified,
+        public_key_der=pinned_verifier_public_der,
+        expected_key_id=expected_verifier_key_id,
+        org_id=subject.org_id, target_id=subject.target_id,
+        incarnation=subject.incarnation, now=now,
+    )
+    html = verified.profile.generated_html()
+    html_digest = hashlib.sha256(html).hexdigest()
+    header_digest = hashlib.sha256(
+        b"aegentra.delivery.profile.v1\x00"
+        + rfc8785.dumps(verified.profile.headers(
+            path=verified.profile.entry_path, content=html,
+        ))
+    ).hexdigest()
+    if (
+        subject.destination_host != verified.profile.host
+        or subject.resource_path != verified.profile.entry_path
+        or subject.content_sha256 != html_digest
+        or subject.independent_bytes_sha256 != html_digest
+        or subject.delivery_profile_sha256 != header_digest
+        or subject.fixed_bundle_sha256 != verified.bundle_manifest_sha256
+        or subject.storage_sha256 != verified.storage_manifest_sha256
+        or subject.source_attestation_sha256 != attestation_digest
+    ):
+        raise BundleRejected("review intent not bound to independently signed bundle")
+    return attestation_digest

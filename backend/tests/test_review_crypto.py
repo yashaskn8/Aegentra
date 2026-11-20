@@ -20,7 +20,7 @@ def fixture():
         incarnation=uuid4(), org_id=uuid4(), asset_id=uuid4(),
         target_id=uuid4(), destination_host="origin.example.test", resource_path="/index.html",
         content_sha256="a" * 64, storage_sha256="b" * 64,
-        independent_bytes_sha256="a" * 64, delivery_profile_sha256="c" * 64,
+        independent_bytes_sha256="a" * 64, delivery_profile_sha256="c" * 64, fixed_bundle_sha256="9" * 64,
         policy_sha256="d" * 64, baseline_sha256="e" * 64,
         source_attestation_sha256="f" * 64,
         scan_receipt_sha256="1" * 64, change_request_sha256="2" * 64,

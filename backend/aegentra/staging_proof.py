@@ -32,6 +32,7 @@ class StagingProof(BaseModel):
     content_sha256: str = Field(pattern=HEXDIGEST)
     storage_sha256: str = Field(pattern=HEXDIGEST)
     delivery_profile_sha256: str = Field(pattern=HEXDIGEST)
+    fixed_bundle_sha256: str = Field(pattern=HEXDIGEST)
     prior_published_revision: int = Field(ge=0, strict=True)
     verifier_key_id: str = Field(min_length=3, max_length=128)
     issued_at: datetime
@@ -63,6 +64,7 @@ def verify_staging_proof(
         or proof.content_sha256 != subject.content_sha256
         or proof.storage_sha256 != subject.storage_sha256
         or proof.delivery_profile_sha256 != subject.delivery_profile_sha256
+        or proof.fixed_bundle_sha256 != subject.fixed_bundle_sha256
         or proof.prior_published_revision != subject.prior_published_revision
     ):
         raise ReviewRejected("staging proof does not match approved subject")

@@ -41,7 +41,7 @@ def signed_fixtures(org, asset, target, incarnation, now, submitter):
         destination_host="origin.example.test", resource_path="/index.html",
         content_sha256="a" * 64, storage_sha256="b" * 64,
         independent_bytes_sha256="a" * 64,
-        delivery_profile_sha256="c" * 64,
+        delivery_profile_sha256="c" * 64, fixed_bundle_sha256="9" * 64,
         policy_sha256="d" * 64, baseline_sha256="e" * 64,
         source_attestation_sha256="f" * 64,
         scan_receipt_sha256="1" * 64, change_request_sha256="2" * 64,
@@ -85,6 +85,7 @@ def signed_fixtures(org, asset, target, incarnation, now, submitter):
         subject_sha256=subject.digest(), content_sha256=subject.content_sha256,
         storage_sha256=subject.storage_sha256,
         delivery_profile_sha256=subject.delivery_profile_sha256,
+        fixed_bundle_sha256=subject.fixed_bundle_sha256,
         prior_published_revision=0, verifier_key_id="trusted-verifier-1",
         issued_at=now, expires_at=now + timedelta(seconds=90),
     )

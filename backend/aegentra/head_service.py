@@ -43,6 +43,7 @@ def generate_fresh_head(
         or publication.status != "SEALED"
         or not publication.receipt_version_id
         or not publication.receipt_sha256
+        or not publication.fixed_bundle_sha256
         or publication.origin_bucket != target.origin_bucket
         or not publication.origin_key
         or not publication.origin_key.startswith(target.origin_key_prefix)
@@ -66,6 +67,7 @@ def generate_fresh_head(
         attempt_sequence=publication.attempt_sequence,
         content_sha256=publication.representation_sha256.hex(),
         delivery_profile_sha256=publication.delivery_profile_sha256.hex(),
+        fixed_bundle_sha256=publication.fixed_bundle_sha256.hex(),
         witness_bucket=witness_bucket,
         witness_key=(
             f"certificates/v1/{root.org_id.hex}/{root.incarnation.hex}/"

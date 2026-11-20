@@ -21,7 +21,7 @@ def fixture():
         attempt_sequence=5, prior_published_revision=2,
         predecessor_witness_sha256="0" * 64, subject_sha256="1" * 64,
         approval_set_sha256="2" * 64, staging_sha256="3" * 64,
-        content_sha256="4" * 64, delivery_profile_sha256="5" * 64,
+        content_sha256="4" * 64, delivery_profile_sha256="5" * 64, fixed_bundle_sha256="9" * 64,
         security_root_generation=7,
         selection_deadline=now + timedelta(seconds=40), issued_at=now,
     )
@@ -29,7 +29,7 @@ def fixture():
         org_id=org, target_id=target, attempt_sequence=5,
         prior_published_revision=2, subject_sha256="1" * 64,
         approval_set_sha256="2" * 64, staging_sha256="3" * 64,
-        content_sha256="4" * 64, delivery_profile_sha256="5" * 64,
+        content_sha256="4" * 64, delivery_profile_sha256="5" * 64, fixed_bundle_sha256="9" * 64,
         predecessor_witness_sha256="0" * 64, selected_at=now,
         expires_at=body.selection_deadline,
     )
@@ -57,7 +57,7 @@ def test_signed_witness_certificate_binds_selection_and_key():
 
 @pytest.mark.parametrize("change", [
     "wrong_selection", "wrong_key", "stopped", "wrong_root", "expired",
-    "wrong_subject", "signature_replay", "wrong_audience",
+    "wrong_subject", "wrong_bundle", "signature_replay", "wrong_audience",
 ])
 def test_certificate_cannot_authorize_invalid_input(change):
     body, selected, incarnation, key, public, sig, now = fixture()
@@ -78,6 +78,8 @@ def test_certificate_cannot_authorize_invalid_input(change):
         now += timedelta(minutes=1)
     elif change == "wrong_subject":
         body = body.model_copy(update={"subject_sha256": "9" * 64})
+    elif change == "wrong_bundle":
+        body = body.model_copy(update={"fixed_bundle_sha256": "a" * 64})
     elif change == "signature_replay":
         sig = key.sign(b"aegentra.release.grant.v1\x00" + body.canonical(),
                        ec.ECDSA(hashes.SHA256()))

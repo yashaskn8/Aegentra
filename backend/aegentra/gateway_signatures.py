@@ -42,6 +42,7 @@ class HeadSnapshot(BaseModel):
     attempt_sequence: int = Field(strict=True, ge=0)
     content_sha256: str = Field(pattern=_SHA)
     delivery_profile_sha256: str = Field(pattern=_SHA)
+    fixed_bundle_sha256: str = Field(pattern=_SHA)
     witness_bucket: str = Field(min_length=3, max_length=63)
     witness_key: str = Field(min_length=1, max_length=256)
     witness_version_id: str = Field(min_length=1, max_length=256)

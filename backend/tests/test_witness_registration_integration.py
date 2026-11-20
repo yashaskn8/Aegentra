@@ -130,6 +130,7 @@ async def _exercise():
             ).hexdigest(),
             content_sha256=subject.content_sha256,
             delivery_profile_sha256=subject.delivery_profile_sha256,
+            fixed_bundle_sha256=subject.fixed_bundle_sha256,
             security_root_generation=3,
             issued_at=now, selection_deadline=selection.expires_at,
         )
@@ -194,6 +195,7 @@ async def _exercise():
                         origin_version_id="v42",
                         content_sha256=subject.content_sha256,
                         delivery_profile_sha256=subject.delivery_profile_sha256,
+                        fixed_bundle_sha256=subject.fixed_bundle_sha256,
                         signer_key_id="independent-origin-verifier",
                         issued_at=now, expires_at=now + timedelta(minutes=2),
                     ),
@@ -221,6 +223,7 @@ async def _exercise():
             origin_version_id="source-exact-version",
             content_sha256=subject.content_sha256,
             delivery_profile_sha256=subject.delivery_profile_sha256,
+            fixed_bundle_sha256=subject.fixed_bundle_sha256,
             signer_key_id="independent-origin-verifier",
             issued_at=now, expires_at=now + timedelta(minutes=2),
         )
@@ -274,6 +277,7 @@ async def _exercise():
             witness_sha256=ref.object_sha256,
             representation_sha256=subject.content_sha256,
             delivery_profile_sha256=subject.delivery_profile_sha256,
+            fixed_bundle_sha256=subject.fixed_bundle_sha256,
             origin_bucket=binding.origin_bucket, origin_key=binding.origin_key,
             origin_version_id=binding.origin_version_id,
             signer_key_id="private-receipt-authority",

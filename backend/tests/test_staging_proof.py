@@ -19,7 +19,7 @@ def fixture():
         target_id=uuid4(), destination_host="example.test", resource_path="/index.html",
         content_sha256="1" * 64, storage_sha256="2" * 64,
         independent_bytes_sha256="1" * 64,
-        delivery_profile_sha256="3" * 64,
+        delivery_profile_sha256="3" * 64, fixed_bundle_sha256="9" * 64,
         policy_sha256="4" * 64, baseline_sha256="5" * 64,
         source_attestation_sha256="6" * 64, scan_receipt_sha256="7" * 64,
         change_request_sha256="8" * 64, baseline_revision=1,
@@ -38,6 +38,7 @@ def fixture():
         content_sha256=subject.content_sha256,
         storage_sha256=subject.storage_sha256,
         delivery_profile_sha256=subject.delivery_profile_sha256,
+        fixed_bundle_sha256=subject.fixed_bundle_sha256,
         prior_published_revision=0, verifier_key_id="other-trust-root",
         issued_at=now, expires_at=now + timedelta(seconds=60),
     )

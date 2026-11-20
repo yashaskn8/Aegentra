@@ -193,7 +193,8 @@ class ProtectedAdmission:
             f"{self.resource.incarnation.hex}/{self.resource.target_id.hex}/"
         )
         if (
-            head.witness_bucket != self.resource.witness_bucket
+            head.fixed_bundle_sha256 != self.resource.fixed_profile.manifest_sha256()
+            or head.witness_bucket != self.resource.witness_bucket
             or head.witness_key != prefix + f"{head.attempt_sequence:020d}"
             or head.origin_bucket != self.resource.origin_bucket
             or not head.origin_key.startswith(self.resource.allowed_origin_prefix)
@@ -227,6 +228,7 @@ class ProtectedAdmission:
             or certificate.prior_published_revision != head.published_revision - 1
             or certificate.content_sha256 != head.content_sha256
             or certificate.delivery_profile_sha256 != head.delivery_profile_sha256
+            or certificate.fixed_bundle_sha256 != head.fixed_bundle_sha256
         ):
             raise AdmissionDenied("witness not bound to published head")
 
