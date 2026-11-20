@@ -168,6 +168,35 @@ async def exercise_case_scope() -> None:
             assert metadata.status_code == 200
             assert metadata.json()["sha256"] == (b"a" * 32).hex()
 
+            response = await analyst_client.post(
+                f"/v1/cases/{case_id}/transition",
+                json={"status": "TRIAGED", "expected_revision": 1},
+                headers=headers,
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["enforcement_effect"] == "NONE"
+            assert response.json()["revision"] == 2
+            stale = await analyst_client.post(
+                f"/v1/cases/{case_id}/transition",
+                json={"status": "CONTAINMENT_REQUESTED", "expected_revision": 1},
+                headers=headers,
+            )
+            assert stale.status_code == 409
+            response = await analyst_client.post(
+                f"/v1/cases/{case_id}/transition",
+                json={"status": "CONTAINMENT_REQUESTED", "expected_revision": 2},
+                headers=headers,
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["status"] == "CONTAINMENT_REQUESTED"
+            assert response.json()["revision"] == 3
+            invalid = await analyst_client.post(
+                f"/v1/cases/{case_id}/transition",
+                json={"status": "CONTAINED", "expected_revision": 3},
+                headers=headers,
+            )
+            assert invalid.status_code == 422
+
             async with httpx.AsyncClient(
                 transport=transport, base_url="https://aegentra.test",
                 follow_redirects=False,

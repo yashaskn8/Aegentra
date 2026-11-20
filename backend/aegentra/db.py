@@ -205,7 +205,7 @@ class InvestigationCase(Base):
     asset_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     title: Mapped[str] = mapped_column(String(140), nullable=False)
     created_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    status: Mapped[str] = mapped_column(String(12), nullable=False, default="OPEN")
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="OPEN")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -213,7 +213,7 @@ class InvestigationCase(Base):
         ForeignKeyConstraint(["org_id", "asset_id"], ["assets.org_id", "assets.id"]),
         ForeignKeyConstraint(["org_id", "created_by"], ["identities.org_id", "identities.id"]),
         UniqueConstraint("org_id", "asset_id", "id", name="uq_case_org_asset_id"),
-        CheckConstraint("status IN ('OPEN', 'CLOSED')", name="case_status"),
+        CheckConstraint("status IN ('OPEN','TRIAGED','CONTAINMENT_REQUESTED','CONTAINED','RECOVERING','CLOSED')", name="case_status"),
         CheckConstraint("revision > 0", name="case_revision_positive"),
     )
 

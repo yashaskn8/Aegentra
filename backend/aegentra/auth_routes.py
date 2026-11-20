@@ -23,6 +23,9 @@ from aegentra.oidc import (
     OidcClient, OidcError, OidcSettings, authorization_url,
     csrf_for_session, random_token,
 )
+from aegentra.incident_state import (
+    IncidentConflict, IncidentUnavailable, request_incident_transition,
+)
 from aegentra.persistence import organization_session
 
 
@@ -40,6 +43,12 @@ class CaseInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     asset_id: UUID
     title: str = Field(min_length=3, max_length=140)
+
+
+class IncidentTransitionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    status: str = Field(pattern=r"^(TRIAGED|CONTAINMENT_REQUESTED)$")
+    expected_revision: int = Field(ge=1)
 
 
 class LinkEvidenceInput(BaseModel):
@@ -240,6 +249,27 @@ def enable_auth(
                 }
         except CaseNotFound as exc:
             raise HTTPException(status_code=404, detail="case unavailable") from exc
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @router.post("/cases/{case_id}/transition")
+    async def transition_incident_case(
+        case_id: UUID, body: IncidentTransitionInput, response: Response,
+        user: Principal = Depends(mutation_principal),
+    ) -> dict:
+        if user.role not in {"ADMIN", "ANALYST"}:
+            raise HTTPException(status_code=403, detail="incident triage not permitted")
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                result = await request_incident_transition(
+                    session, org_id=user.org_id, identity_id=user.identity_id,
+                    case_id=case_id, next_status=body.status,
+                    expected_revision=body.expected_revision,
+                )
+        except IncidentUnavailable as exc:
+            raise HTTPException(status_code=404, detail="incident unavailable") from exc
+        except IncidentConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         response.headers["Cache-Control"] = "no-store"
         return result
 
