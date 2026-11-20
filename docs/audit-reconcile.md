@@ -46,3 +46,7 @@ treated as independently qualified. No retrospective backfill or silent trust
 upgrade is permitted. External source retention, complete export,
 authorization to create audit checkpoints, and deployed immutability remain
 separate mandatory P0 gates.
+
+The writer also rejects NaN and positive/negative infinity before an audit
+record can be committed: those are not JSON numbers and would otherwise
+create records that fail strict independent reconciliation.

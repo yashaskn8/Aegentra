@@ -28,6 +28,7 @@ class IdempotencyConflict(Exception):
 def canonical_bytes(value: dict) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        allow_nan=False,
     ).encode("ascii")
 
 

@@ -169,3 +169,9 @@ def test_retained_audit_payload_detects_metadata_tampering(tamper):
             org_id=org, stream="release", previous=None, ordered=events,
             expected_sequence=3, expected_head=events[-1].event_hash,
         )
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_audit_writer_rejects_nonstandard_json_numeric_values(value):
+    with pytest.raises(ValueError):
+        canonical_bytes({"event": {"value": value}})
