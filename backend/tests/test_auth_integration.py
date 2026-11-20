@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from sqlalchemy import delete, insert, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.api import create_app
@@ -167,6 +167,36 @@ async def _exercise_auth() -> None:
                 await session.execute(
                     update(Identity).where(Identity.id == person).values(active=False)
                 )
+            assert (await client.get("/v1/me")).status_code == 401
+            # Re-enabling an identity cannot resurrect the same browser token.
+            async with admin.begin() as session:
+                await session.execute(
+                    update(Identity).where(Identity.id == person).values(active=True)
+                )
+                current_version = await session.scalar(
+                    select(Identity.membership_version).where(Identity.id == person)
+                )
+                assert current_version == 3
+            assert (await client.get("/v1/me")).status_code == 401
+
+            # Only a new verified OIDC transaction gets the new version.
+            start = await client.get("/v1/auth/login")
+            state = parse_qs(urlsplit(start.headers["location"]).query)["state"][0]
+            assert (await client.get(
+                "/v1/auth/callback",
+                params={"code": "test-code", "state": state},
+            )).status_code == 303
+            assert (await client.get("/v1/me")).status_code == 200
+
+            # A changed authorization role also invalidates an issued cookie.
+            async with admin.begin() as session:
+                await session.execute(
+                    update(Identity).where(Identity.id == person).values(role="VIEWER")
+                )
+                current_version = await session.scalar(
+                    select(Identity.membership_version).where(Identity.id == person)
+                )
+                assert current_version == 4
             assert (await client.get("/v1/me")).status_code == 401
     finally:
         try:

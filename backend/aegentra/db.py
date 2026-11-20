@@ -99,12 +99,17 @@ class BrowserSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    membership_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         ForeignKeyConstraint(
             ["org_id", "identity_id"], ["identities.org_id", "identities.id"]
         ),
         CheckConstraint("octet_length(token_hash) = 32", name="session_token_hash_length"),
+        CheckConstraint(
+            "membership_version IS NULL OR membership_version > 0",
+            name="session_membership_version",
+        ),
     )
 
 

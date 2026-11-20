@@ -98,3 +98,14 @@ enrollment and independent P0 qualification.
 Native stack remains Python/FastAPI/SQLAlchemy/Alembic/PostgreSQL,
 React/TypeScript/Vite, AWS CDK/EC2/systemd. **No Docker, Compose, containers
 or Kubernetes.**
+
+## Identity session revocation hardening
+
+Browser sessions now pin the issuing identity's `membership_version`.
+PostgreSQL automatically advances that version when identity active state,
+role, issuer, subject, or organization changes, preventing old cookies from
+becoming valid after reactivation or role changes. The 0018 migration leaves
+preexisting browser sessions with a NULL version and invalidates them until
+users authenticate again. Native PostgreSQL integration tests exercise both
+re-enrollment and role-change rejection. This is not proof of hardened
+production identity enrollment or independent revocation custody.

@@ -96,6 +96,7 @@ class AuthStore:
                         token_hash=token_digest(token),
                         identity_id=identity.id,
                         org_id=identity.org_id,
+                        membership_version=identity.membership_version,
                         created_at=now,
                         expires_at=now + timedelta(hours=8),
                         idle_expires_at=now + timedelta(minutes=30),
@@ -128,6 +129,7 @@ class AuthStore:
                 now = utc_now()
                 if (
                     not identity.active
+                    or browser.membership_version != identity.membership_version
                     or now >= browser.expires_at
                     or now >= browser.idle_expires_at
                 ):
