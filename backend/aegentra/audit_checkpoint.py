@@ -19,6 +19,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from pydantic import BaseModel, ConfigDict, Field
 
+from aegentra.audit_reconcile import VerifiedAuditHead
+
 
 class AuditCheckpointRejected(ValueError):
     pass
@@ -88,6 +90,25 @@ def verify_checkpoint(
     except (InvalidSignature, ValueError, TypeError) as exc:
         raise AuditCheckpointRejected("independent checkpoint signature failed") from exc
     return hashlib.sha256(signed_checkpoint_bytes(body, signature_der)).hexdigest()
+
+
+def require_reconciled_checkpoint_head(
+    *, body: AuditCheckpoint, reconciled: "VerifiedAuditHead",
+) -> None:
+    """Bind a proposed checkpoint to independently reconciled audit bytes.
+
+    This is only a consistency check; the caller must establish the provenance
+    and completeness of the independent audit source before signing.
+    """
+    if (
+        body.org_id != reconciled.org_id
+        or body.stream != reconciled.stream
+        or body.sequence != reconciled.sequence
+        or not isinstance(reconciled.sha256, bytes)
+        or len(reconciled.sha256) != 32
+        or not hmac.compare_digest(body.head_sha256, reconciled.sha256.hex())
+    ):
+        raise AuditCheckpointRejected("checkpoint does not match reconciled audit head")
 
 
 @dataclass(frozen=True)

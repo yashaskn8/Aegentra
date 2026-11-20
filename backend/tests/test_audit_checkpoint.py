@@ -10,7 +10,10 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from aegentra.audit_checkpoint import (
     AuditCheckpoint, AuditCheckpointRejected, CheckpointArchive,
     checkpoint_message, verify_checkpoint, signed_checkpoint_bytes,
+    require_reconciled_checkpoint_head,
 )
+
+from aegentra.audit_reconcile import VerifiedAuditHead
 
 
 class FakeS3:
@@ -137,3 +140,22 @@ def test_wrong_account_and_wrong_version_do_not_prove_immutable_audit():
     wrong = ref.__class__(ref.bucket, ref.key, "null", ref.sha256)
     with pytest.raises(AuditCheckpointRejected):
         archive.read_exact(wrong, body=body)
+
+
+def test_checkpoint_must_match_independently_reconciled_head():
+    body, _, _, _, _ = fixture()
+    head = VerifiedAuditHead(
+        org_id=body.org_id, stream=body.stream,
+        sequence=body.sequence, sha256=bytes.fromhex(body.head_sha256),
+    )
+    require_reconciled_checkpoint_head(body=body, reconciled=head)
+
+    for mismatch in (
+        head.__class__(uuid4(), head.stream, head.sequence, head.sha256),
+        head.__class__(head.org_id, "cases", head.sequence, head.sha256),
+        head.__class__(head.org_id, head.stream, head.sequence - 1, head.sha256),
+        head.__class__(head.org_id, head.stream, head.sequence, b"z" * 32),
+        head.__class__(head.org_id, head.stream, head.sequence, b"short"),
+    ):
+        with pytest.raises(AuditCheckpointRejected):
+            require_reconciled_checkpoint_head(body=body, reconciled=mismatch)

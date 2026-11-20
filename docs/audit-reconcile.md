@@ -18,3 +18,9 @@ export/reconciliation worker, source completeness proof, durable
 outside-database chain and checkpoint sequence, key custody,
 Object Lock retention, tamper/cost/retention drills, and alerting.
 Tests use synthetic local entries and do not certify external witnessing.
+
+Before an independent signer issues a checkpoint, pass the head returned by
+`reconcile_audit_window` to `require_reconciled_checkpoint_head` alongside
+the proposed `AuditCheckpoint`. The check rejects mismatched tenant, stream,
+sequence, digest, and malformed head lengths. This binding does not establish
+source completeness, independence, or authorization to sign.
