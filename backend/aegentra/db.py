@@ -155,6 +155,14 @@ class OutboxEvent(Base):
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    lease_nonce_hash: Mapped[bytes | None] = mapped_column(LargeBinary(32), nullable=True)
+    lease_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    abandoned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    delivery_reference: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -162,6 +170,12 @@ class OutboxEvent(Base):
             ["audit_entries.org_id", "audit_entries.stream", "audit_entries.sequence"],
         ),
         UniqueConstraint("org_id", "stream", "sequence", name="uq_outbox_event"),
+        CheckConstraint("attempts BETWEEN 0 AND 10", name="outbox_attempt_budget"),
+        CheckConstraint("lease_generation >= 0", name="outbox_generation_nonnegative"),
+        CheckConstraint(
+            "lease_nonce_hash IS NULL OR octet_length(lease_nonce_hash) = 32",
+            name="outbox_lease_digest_length",
+        ),
     )
 
 
