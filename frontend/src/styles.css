@@ -57,3 +57,6 @@ footer { padding: 25px 0 44px; border-top: 1px solid #22343b; color: #759397; fo
 .asset-form input { min-width: 170px; flex: 1; }
 .workspace-error { color: #ffb4b4; }
 @media (max-width: 740px) { .workspace { padding: 20px; } .asset-form { display: grid; grid-template-columns: 1fr; } }
+
+.cases-panel { border-top: 1px solid #2c484d; margin-top: 34px; padding-top: 24px; }
+.cases-panel h3 { font-size: 18px; margin: 0 0 8px; }

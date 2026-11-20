@@ -12,7 +12,7 @@ from aegentra.db import Asset
 async def list_assets(session: AsyncSession, *, org_id: UUID) -> list[Asset]:
     # Explicit SQL scope complements PostgreSQL RLS.
     result = await session.scalars(
-        select(Asset).where(Asset.org_id == org_id).order_by(Asset.slug, Asset.id)
+        select(Asset).where(Asset.org_id == org_id).order_by(Asset.slug, Asset.id).limit(101)
     )
     return list(result.all())
 

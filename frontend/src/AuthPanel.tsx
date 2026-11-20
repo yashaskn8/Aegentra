@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import CasesPanel from "./CasesPanel";
 
 type User = {
   identity_id: string;
@@ -176,6 +177,7 @@ export default function AuthPanel() {
             </form>
           )}
           {assetError && <p className="workspace-error" role="alert">{assetError}</p>}
+          <CasesPanel user={session.user} assets={assets} />
         </div>
       )}
     </section>

@@ -38,3 +38,9 @@ The current database-local audit hash chain is not sufficient against database-a
 - Case creation requires an enrolled ANALYST or ADMIN; it is idempotent and records a transactionally consistent audit/outbox event.
 - A case member can link only existing evidence belonging to the same asset; cross-case and cross-org reads return no metadata.
 - Case membership administration, retention policy, signed source provenance and a real evidence intake pipeline remain outstanding. Tests use synthetic metadata, not submitted hostile files.
+
+## Console and query bounds
+
+- React now displays assigned cases and supports authenticated case creation for ANALYST/ADMIN identities.
+- Asset list queries cap the result set at 101, returning at most 100 and an explicit truncation flag.
+- Case evidence bytes are still unavailable: the prior metadata-only evidence table is a fixture foundation, not a production ingest path.
