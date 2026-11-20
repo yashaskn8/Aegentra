@@ -11,6 +11,27 @@ origin, one exact HTML entry document and one same-origin classic JavaScript
 resource**. Arbitrary React builds, third-party CDNs, dynamic dependency
 loaders and generic web ecosystems remain investigation/shadow only.
 
+## Additional completed contracts in this implementation pass
+
+- **S0 independently signed origin scope:** customer-origin owner and
+  security-custodian signatures, distinct AWS account IDs, pinned generated
+  HTML template and digest-addressed classic JavaScript, exact CSP/header
+  profile and enforced SHADOW_PENDING_INDEPENDENT_QUALIFICATION result.
+  No browser approval, automatic enrollment or ENFORCED activation.
+- **S2 native cleanup controls:** immutable EBS/EC2 IDs, advisory receipt
+  dependency, durable DELETE_REQUESTED intent, narrowly scoped janitor
+  DeleteVolume requests, strict read-only AWS NotFound inventory and two
+  time-separated confirmations before DISPOSED. All AWS responses in CI
+  are synthetic; no EBS resource was deleted in an AWS account.
+- **S4 incident/recovery cases:** triage and containment-request transitions
+  under case membership, CSRF and optimistic revision fencing; case statuses
+  cannot be promoted to CONTAINED by browser requests. Recovery preflight
+  reports missing external STOP, writer fencing, tombstones, consent, audit,
+  witness and custodians but never clears STOP.
+- **Security CDK:** distinct retained P-256 KMS witness and veto signing
+  keys with no workload/API grants. AWS key policies and independent custody
+  are not deployed or qualified.
+
 ## Built and exercised with native CI fixtures
 
 - **Identity/API/console (S1):** FastAPI BFF with OIDC code/PKCE/nonce/session
@@ -53,7 +74,7 @@ loaders and generic web ecosystems remain investigation/shadow only.
   human hardware-backed credential enrollment/revocation.
 - Native disposable EC2 guest lifecycle, AMI build provenance, no-route/no-
   IMDS/no-IAM runtime drills, volume attach/detach, trusted byte acquisition,
-  autonomous janitor, SQS controller and secure guest execution qualification.
+  deployed automated janitor, SQS controller and secure guest execution qualification.
 - Signed source-builder provenance and independent two-channel final-byte
   provenance; an offline parser can never certify semantic safety.
 - External root/veto monotonic floor, retained append-only history, physical
