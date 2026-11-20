@@ -20,6 +20,7 @@ from aegentra.protected_gateway import (
     EnrolledResource, ProtectedAdmission,
     delivery_headers, delivery_profile_sha256,
 )
+from aegentra.fixed_delivery import FixedStaticProfile, UnsupportedDelivery
 from aegentra.origin_asgi import ProtectedOriginASGI
 from aegentra.witness_crypto import (
     WitnessBody, signed_certificate_bytes, witness_message,
@@ -27,16 +28,26 @@ from aegentra.witness_crypto import (
 
 
 class Fixture:
-    def __init__(self):
+    def __init__(self, *, script_route: bool = False):
         self.now = datetime.now(timezone.utc)
-        self.content = b'<!doctype html><script src="/app.js"></script>'
+        self.script = b"const answer = 42;"
+        profile = FixedStaticProfile(
+            host="static.example.test",
+            script_sha256=hashlib.sha256(self.script).hexdigest(),
+            script_length=len(self.script),
+        )
+        self.content = self.script if script_route else profile.generated_html()
         self.resource = EnrolledResource(
             org_id=uuid4(), target_id=uuid4(), incarnation=uuid4(),
-            host="static.example.test", path="/index.html",
+            host="static.example.test",
+            path=profile.script_path if script_route else profile.entry_path,
             origin_bucket="independent-origin",
             allowed_origin_prefix="published/allowed/",
             witness_bucket="security-archive",
-            content_type="text/html; charset=utf-8",
+            content_type=(
+                "text/javascript; charset=utf-8"
+                if script_route else "text/html; charset=utf-8"
+            ), fixed_profile=profile,
         )
         self.head_signer = ec.generate_private_key(ec.SECP256R1())
         self.veto_signer = ec.generate_private_key(ec.SECP256R1())
@@ -239,3 +250,32 @@ def test_reference_asgi_exposes_only_prechecked_bytes_or_503():
 
     encoded = asyncio.run(invoke(ProtectedOriginASGI(f.gate()), raw_path=b"/%69ndex.html"))
     assert encoded[0]["status"] == 503
+
+
+def test_digest_addressed_script_is_served_with_hash_only_csp():
+    f = Fixture(script_route=True)
+    response = asyncio.run(f.check())
+    assert response.body == f.script
+    assert f.resource.path.endswith(hashlib.sha256(f.script).hexdigest() + ".js")
+    assert response.headers["content-type"] == "text/javascript; charset=utf-8"
+    csp = response.headers["content-security-policy"]
+    assert "script-src 'sha256-" in csp
+    assert "'self'" not in csp
+    assert "connect-src 'none'" in csp
+    assert "worker-src 'none'" in csp
+
+
+def test_gateway_refuses_unreviewed_html_and_wrong_js_bytes_before_veto():
+    html = Fixture()
+    html.content = b'<!doctype html><script src="/unreviewed.js"></script>'
+    # Fixture signed hash now describes adversarial HTML, but the fixed
+    # independently enrolled template check still denies it.
+    with pytest.raises(AdmissionDenied, match="unqualified"):
+        asyncio.run(html.check())
+    assert html.veto_calls == []
+
+    js = Fixture(script_route=True)
+    js.content = b"const answer = 43;"
+    with pytest.raises(AdmissionDenied, match="unqualified"):
+        asyncio.run(js.check())
+    assert js.veto_calls == []

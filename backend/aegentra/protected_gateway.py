@@ -21,6 +21,7 @@ import rfc8785
 from pydantic import ValidationError
 
 from aegentra.content_manifest import ManifestError, strict_json
+from aegentra.fixed_delivery import FixedStaticProfile, UnsupportedDelivery
 from aegentra.gateway_signatures import (
     AdmissionDenied, HeadSnapshot, SignedHead, SignedVeto,
     verify_head, verify_veto,
@@ -34,12 +35,6 @@ _DISALLOWED_REQUEST_HEADERS = frozenset({
     "range", "if-match", "if-none-match", "if-modified-since",
     "if-unmodified-since", "if-range",
 })
-_CSP = (
-    "default-src 'none'; script-src 'self'; base-uri 'none'; "
-    "form-action 'none'; object-src 'none'; frame-ancestors 'none'"
-)
-
-
 @dataclass(frozen=True)
 class EnrolledResource:
     org_id: UUID
@@ -51,6 +46,7 @@ class EnrolledResource:
     allowed_origin_prefix: str
     witness_bucket: str
     content_type: str
+    fixed_profile: FixedStaticProfile
 
 
 @dataclass(frozen=True)
@@ -62,18 +58,16 @@ class PreparedResponse:
 
 
 def delivery_headers(resource: EnrolledResource, content: bytes) -> dict[str, str]:
-    if resource.content_type not in {
-        "text/html; charset=utf-8", "text/javascript; charset=utf-8"
-    }:
-        raise AdmissionDenied("unqualified protected resource type")
-    return {
-        "cache-control": "no-store, max-age=0",
-        "content-type": resource.content_type,
-        "content-length": str(len(content)),
-        "content-security-policy": _CSP,
-        "x-content-type-options": "nosniff",
-        "cross-origin-resource-policy": "same-origin",
-    }
+    """No generic HTML or script-src 'self': only fixed generated entry + exact JS."""
+    try:
+        if resource.host != resource.fixed_profile.host:
+            raise UnsupportedDelivery("host does not match enrolled profile")
+        headers = resource.fixed_profile.headers(path=resource.path, content=content)
+        if headers["content-type"] != resource.content_type:
+            raise UnsupportedDelivery("resource media type differs from fixed profile")
+        return headers
+    except UnsupportedDelivery as exc:
+        raise AdmissionDenied("unqualified original HTML or JavaScript bytes") from exc
 
 
 def delivery_profile_sha256(headers: dict[str, str]) -> str:
@@ -142,7 +136,15 @@ class ProtectedAdmission:
             max_decision_seconds <= 0
             or max_decision_seconds > MAX_DECISION_SECONDS
             or not resource.allowed_origin_prefix.startswith("published/")
-            or not resource.path.startswith("/")
+            or resource.host != resource.fixed_profile.host
+            or resource.path not in {
+                resource.fixed_profile.entry_path, resource.fixed_profile.script_path
+            }
+            or resource.content_type != (
+                "text/html; charset=utf-8"
+                if resource.path == resource.fixed_profile.entry_path
+                else "text/javascript; charset=utf-8"
+            )
         ):
             raise ValueError("incomplete protected enrollment")
         self.resource = resource
