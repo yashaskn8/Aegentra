@@ -43,3 +43,42 @@ Vite's development proxy forwards `/v1` to the local FastAPI service. Review and
 Read [AGENTS.md](AGENTS.md). Keep changes small, testable, and honest about gaps. The architecture's release authority, witness, protected origin, and offline EC2 workers are **future milestones**, not implemented controls.
 
 See [implementation status](docs/implementation-status.md).
+
+## OIDC browser sessions (opt-in)
+
+The default `aegentra.api:app` exposes only liveness and no authentication or asset mutations.
+To run the authenticated app, provide all of these externally managed settings:
+
+```text
+AEGENTRA_DATABASE_URL
+AEGENTRA_OIDC_ISSUER
+AEGENTRA_OIDC_AUTHORIZATION_URL
+AEGENTRA_OIDC_TOKEN_URL
+AEGENTRA_OIDC_JWKS_URL
+AEGENTRA_OIDC_CLIENT_ID
+AEGENTRA_OIDC_CLIENT_SECRET
+AEGENTRA_OIDC_REDIRECT_URI
+AEGENTRA_CSRF_KEY_HEX
+```
+
+All OIDC URLs and the callback must use HTTPS. The CSRF key must be at least 32 bytes,
+hex encoded. The callback path is `/v1/auth/callback`. The provider identity must be
+**pre-enrolled** by a trusted database administrator in `identities`; authenticating
+does not create a user or assign an authorization role. Run the native migration before
+enabling the app.
+
+```bash
+cd backend
+alembic upgrade head
+uvicorn aegentra.server:create_configured_app --factory
+```
+
+The backend sets host-only Secure/HttpOnly cookies; deploy behind a correctly configured
+HTTPS reverse proxy. A plain HTTP Vite development proxy cannot complete the secure
+cookie and strict-Origin flow. Do not weaken cookie security to make it work.
+
+**Limitations:** This is an implementation foundation, not qualified production IAM.
+Identity enrollment administration, ingress rate limits, hardened DB roles, and
+independent security review remain outstanding. Frontend development currently uses
+`npm install` because a reviewed lockfile has not been committed; do not treat the
+frontend build as release-supply-chain qualified.

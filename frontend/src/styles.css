@@ -40,3 +40,20 @@ footer { padding: 25px 0 44px; border-top: 1px solid #22343b; color: #759397; fo
   li { grid-template-columns: 34px 1fr; }
   .milestone-state { grid-column: 2; }
 }
+
+.workspace { margin-top: 65px; padding: 30px; border: 1px solid #254047; border-radius: 15px; background: #101c21; }
+.workspace-note { color: #9eb7bd; line-height: 1.65; }
+.workspace-note a { color: #52d5bd; }
+.workspace-account { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; gap: 12px; color: #bdcfd0; }
+.workspace button { background: #52d5bd; color: #0a191b; border: 0; border-radius: 7px; padding: 10px 16px; font-weight: 700; cursor: pointer; }
+.workspace button:disabled { opacity: .6; cursor: not-allowed; }
+.workspace-account button { background: transparent; color: #b1ccd0; border: 1px solid #35545a; }
+.asset-list { list-style: none; padding: 0; margin: 10px 0 22px; }
+.asset-list li { border-bottom: 1px solid #254047; padding: 12px 0; display: flex; justify-content: space-between; gap: 10px; }
+.asset-list small { color: #91b0b3; }
+.asset-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.asset-form label { color: #abc4c8; font-size: 13px; }
+.asset-form input, .asset-form select { color: #eefafa; background: #0a1519; border: 1px solid #416067; border-radius: 6px; padding: 10px; }
+.asset-form input { min-width: 170px; flex: 1; }
+.workspace-error { color: #ffb4b4; }
+@media (max-width: 740px) { .workspace { padding: 20px; } .asset-form { display: grid; grid-template-columns: 1fr; } }

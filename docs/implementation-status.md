@@ -16,7 +16,7 @@ Not implemented:
 - OIDC/BFF sessions; the asset store is internal only and is not an HTTP endpoint.
 - Signed/sealed evidence ingestion, outbox, immutable audit chain, isolated analyzer, release governance, signing, protected serving, or AWS deployment.
 - Production PostgreSQL role provisioning/permissions review and independent security testing.
-- Frontend build verification and pinned npm lockfile.
+- Frontend dependency lockfile and release-ready pinned supply-chain review.
 - No production security decision may be made using these components.
 
 Important RLS limitation: PostgreSQL custom transaction settings can be changed by a role capable of executing arbitrary SQL. RLS is defense in depth, not a substitute for authentication, least-privilege DB roles, parameterized queries, and server-owned organization scope.

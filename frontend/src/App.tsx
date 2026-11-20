@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AuthPanel from "./AuthPanel";
 
 type ApiState = "checking" | "live" | "unavailable";
 
@@ -82,6 +83,8 @@ export default function App() {
             <p>No scans have been executed or qualified in this application.</p>
           </div>
         </section>
+
+        <AuthPanel />
 
         <section className="roadmap">
           <div className="section-heading">
