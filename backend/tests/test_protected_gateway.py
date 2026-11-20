@@ -188,7 +188,7 @@ def test_gateway_fail_closed_on_independent_failure(condition):
         asyncio.run(f.check())
 
 
-@pytest.mark.parametrize("request", [
+@pytest.mark.parametrize("case_args", [
     {"method": "HEAD"},
     {"method": "POST"},
     {"host": "other.example.test"},
@@ -197,10 +197,10 @@ def test_gateway_fail_closed_on_independent_failure(condition):
     {"request_headers": {"If-None-Match": "abc"}},
     {"request_headers": {"If-Modified-Since": "yesterday"}},
 ])
-def test_out_of_profile_request_cannot_reach_dependencies(request):
+def test_out_of_profile_request_cannot_reach_dependencies(case_args):
     f = Fixture()
     with pytest.raises(AdmissionDenied):
-        asyncio.run(f.check(**request))
+        asyncio.run(f.check(**case_args))
     assert not f.head_calls and not f.veto_calls and f.body_calls == 0
 
 
