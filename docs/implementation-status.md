@@ -24,3 +24,10 @@ Important RLS limitation: PostgreSQL custom transaction settings can be changed 
 Next: implement OIDC/BFF identity and authenticated asset APIs; exercise database permission boundaries and migrations under separate production-style roles.
 
 The current database-local audit hash chain is not sufficient against database-administrator compromise; an independently governed archive is a later stage. Outbox records are durable but are not yet dispatched.
+
+## S2 prototype (inert fixtures only)
+
+- Added a bounded JavaScript Tree-sitter syntax analyzer (no execution, no automatic release approval), with explicit failure states and byte spans.
+- Added a deterministic streaming SHA-256 verifier of server-authorized versioned blobs, with an injectable S3 adapter.
+- These functions **must not process untrusted customer bytes in the API process**. The native offline EC2 guest and independent verifier are still unbuilt/unqualified.
+- See [security release gates](security-release-gates.md) before making protected deployment claims.
