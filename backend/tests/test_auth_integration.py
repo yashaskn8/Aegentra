@@ -160,7 +160,7 @@ async def _exercise_auth() -> None:
                 ).all()
                 assert len(entries) == len(outbox) == 1
                 assert entries[0].event_type == "ASSET_REGISTERED"
-                assert entries[0].previous_hash == b"\\x00" * 32
+                assert entries[0].previous_hash == bytes(32)
 
             # A role revocation is read from the database on every request.
             async with admin.begin() as session:
