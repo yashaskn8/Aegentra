@@ -17,6 +17,7 @@ export default function CasesPanel({ user, assets }: { user: User; assets: Asset
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [transitioning, setTransitioning] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
 
   useEffect(() => {
@@ -67,16 +68,89 @@ export default function CasesPanel({ user, assets }: { user: User; assets: Asset
     }
   }
 
+  async function moveCase(
+    item: CaseSummary,
+    nextStatus: "TRIAGED" | "CONTAINMENT_REQUESTED",
+  ) {
+    if (transitioning !== null || busy) return;
+    setTransitioning(item.id);
+    setError("");
+    try {
+      const response = await fetch(`/v1/cases/${item.id}/transition`, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": user.csrf_token,
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+          expected_revision: item.revision,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(
+          response.status === 409
+            ? "The incident changed. Refresh this page before trying again."
+            : response.status === 403
+              ? "Incident transition is not permitted for your identity."
+              : response.status === 404
+                ? "This incident is no longer assigned to you."
+                : "Incident transition could not be recorded.",
+        );
+      }
+      const changed: unknown = await response.json();
+      if (
+        typeof changed !== "object" || changed === null
+        || !("id" in changed) || changed.id !== item.id
+        || !("status" in changed) || changed.status !== nextStatus
+        || !("revision" in changed) || changed.revision !== item.revision + 1
+        || !("enforcement_effect" in changed)
+        || changed.enforcement_effect !== "NONE"
+      ) {
+        throw new Error("Unexpected incident result; refresh before continuing.");
+      }
+      setCases((existing) => existing.map((record) =>
+        record.id === item.id
+          ? { ...record, status: nextStatus, revision: item.revision + 1 }
+          : record
+      ));
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "Incident transition failed.");
+    } finally {
+      setTransitioning(null);
+    }
+  }
+
   return (
     <section className="cases-panel" aria-label="Investigation cases">
       <h3>Assigned investigation cases</h3>
-      <p className="workspace-note">Access requires an explicit case membership. This is not an active threat feed.</p>
+      <p className="workspace-note">Access requires an explicit case membership. Triage and containment requests only record incident workflow intent; they do not stop protected traffic or confirm containment.</p>
       {cases.length === 0 && <p className="workspace-note">No assigned cases.</p>}
       <ul className="asset-list">
         {cases.map((item) => (
           <li key={item.id}>
-            <span>{item.title}</span>
-            <small>{item.status} · revision {item.revision}</small>
+            <div className="case-information">
+              <span>{item.title}</span>
+              <small>{item.status} · revision {item.revision}</small>
+            </div>
+            {(user.role === "ANALYST" || user.role === "ADMIN") && (
+              <div className="case-actions">
+                {item.status === "OPEN" && (
+                  <button type="button" disabled={transitioning !== null || busy}
+                    onClick={() => { void moveCase(item, "TRIAGED"); }}>
+                    {transitioning === item.id ? "Recording…" : "Mark triaged"}
+                  </button>
+                )}
+                {item.status === "TRIAGED" && (
+                  <button type="button" disabled={transitioning !== null || busy}
+                    onClick={() => { void moveCase(item, "CONTAINMENT_REQUESTED"); }}>
+                    {transitioning === item.id ? "Recording…" : "Request containment"}
+                  </button>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ul>

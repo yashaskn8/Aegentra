@@ -41,10 +41,10 @@ function useApiLiveness(): ApiState {
 }
 
 const planned = [
-  { stage: "S1", name: "Secure foundation", detail: "Manifest constraints, explicit coverage, schema and tests", status: "In progress" },
-  { stage: "S2", name: "Static evidence", detail: "Offline parser, independent verifier, immutable evidence", status: "Not started" },
-  { stage: "S3", name: "Protected release", detail: "Endorsement, witness, publish and serving boundaries", status: "Not started" },
-  { stage: "S4", name: "Qualification", detail: "Isolation, recovery, threat tests, independent review", status: "Not started" },
+  { stage: "S1", name: "Secure foundation", detail: "Authenticated cases, tenant isolation, intake and audit/outbox", status: "Native CI tested" },
+  { stage: "S2", name: "Static evidence", detail: "Offline guest protocol and independent verification contracts", status: "AWS qualification pending" },
+  { stage: "S3", name: "Protected release", detail: "Review, witness, publication and fail-closed gateway prototypes", status: "Not deployed" },
+  { stage: "S4", name: "Qualification", detail: "Incident containment, recovery and negative-test evidence", status: "Independent sign-off pending" },
 ];
 
 export default function App() {
@@ -53,7 +53,7 @@ export default function App() {
     <div className="app-shell">
       <header className="site-header">
         <div className="brand"><span className="brand-mark" aria-hidden="true">◆</span> Aegentra</div>
-        <span className="phase">S1 · Shadow foundation</span>
+        <span className="phase">Shadow · No protected serving</span>
       </header>
 
       <main>
@@ -75,7 +75,7 @@ export default function App() {
           <div className="status-card">
             <div className="label">Release authority</div>
             <div className="value muted">Not enabled</div>
-            <p>No deployment approval, signing, or protected serving exists yet.</p>
+            <p>No customer-enrolled release authority or protected serving is deployed.</p>
           </div>
           <div className="status-card">
             <div className="label">Analysis coverage</div>

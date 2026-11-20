@@ -60,3 +60,11 @@ footer { padding: 25px 0 44px; border-top: 1px solid #22343b; color: #759397; fo
 
 .cases-panel { border-top: 1px solid #2c484d; margin-top: 34px; padding-top: 24px; }
 .cases-panel h3 { font-size: 18px; margin: 0 0 8px; }
+
+.case-information { display: flex; flex-direction: column; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.case-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.case-actions button { background: transparent; color: #e4f6f1; border: 1px solid #37675f; }
+.case-actions button:hover:not(:disabled) { border-color: #52d5bd; }
+@media (max-width: 740px) {
+  .cases-panel .asset-list li { align-items: flex-start; flex-direction: column; }
+}
