@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, LargeBinary, String, Uuid
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, LargeBinary, String, Uuid, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -29,6 +29,7 @@ class Asset(Base):
     __table_args__ = (
         ForeignKeyConstraint(["org_id"], ["organizations.id"]),
         CheckConstraint("criticality IN ('LOW', 'MEDIUM', 'HIGH')", name="asset_criticality"),
+        UniqueConstraint("org_id", "slug", name="uq_asset_org_slug"),
     )
 
 
