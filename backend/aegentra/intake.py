@@ -14,7 +14,7 @@ MIB = 1024 * 1024
 MAX_PARTS = 64
 MAX_PART_BYTES = 10 * MIB
 MAX_TOTAL_BYTES = 25 * MIB
-_PATH = re.compile(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_.-]+)*\Z")
+_PATH = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_.-]+)*\Z")
 
 
 class ArtifactPart(BaseModel):
