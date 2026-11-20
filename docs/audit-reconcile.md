@@ -24,3 +24,11 @@ Before an independent signer issues a checkpoint, pass the head returned by
 the proposed `AuditCheckpoint`. The check rejects mismatched tenant, stream,
 sequence, digest, and malformed head lengths. This binding does not establish
 source completeness, independence, or authorization to sign.
+
+Callers with an independently established terminal sequence should pass
+`expected_sequence` to `reconcile_audit_window`. The verifier then rejects
+a valid-but-truncated tail, malformed bounds, and any terminal sequence
+mismatch. The caller must derive that bound independently: copying the last
+sequence in the received batch would defeat the truncation check. Neither
+this option nor the primary database head proves independently complete
+capture, and protected serving remains disabled.

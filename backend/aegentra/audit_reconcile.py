@@ -36,6 +36,7 @@ def reconcile_audit_window(
     previous: VerifiedAuditHead | None,
     ordered: Sequence[AuditEntry],
     expected_head: bytes | None = None,
+    expected_sequence: int | None = None,
 ) -> VerifiedAuditHead:
     """Verify one contiguous window, rejecting gaps, duplicates and forks."""
     if not stream or not stream.isascii() or len(stream) > 32:
@@ -71,8 +72,14 @@ def reconcile_audit_window(
         if digest != entry.event_hash:
             raise AuditGap("audit record hash is inconsistent with previous chain")
         current = digest
+    if expected_sequence is not None and (
+        type(expected_sequence) is not int
+        or expected_sequence <= 0 or seq != expected_sequence
+    ):
+        raise AuditGap("audit window does not reach expected terminal sequence")
     if expected_head is not None and (
-        len(expected_head) != 32 or current != expected_head
+        not isinstance(expected_head, bytes)
+        or len(expected_head) != 32 or current != expected_head
     ):
         raise AuditGap("reconciled sequence differs from advertised primary head")
     return VerifiedAuditHead(

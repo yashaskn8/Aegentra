@@ -95,3 +95,38 @@ def test_wrong_prior_checkpoint_or_oversized_window_rejected():
             org_id=org, stream="release",
             previous=None, ordered=events * 334,
         )
+
+
+@pytest.mark.parametrize("terminal", [2, 4, 0, -1, True, "3"])
+def test_expected_terminal_sequence_must_match_verified_window(terminal):
+    org, events = fixture()
+    with pytest.raises(AuditGap, match="terminal sequence"):
+        reconcile_audit_window(
+            org_id=org, stream="release", previous=None,
+            ordered=events, expected_sequence=terminal,
+        )
+
+
+def test_truncated_tail_rejected_even_when_all_present_entries_are_valid():
+    org, events = fixture()
+    with pytest.raises(AuditGap, match="terminal sequence"):
+        reconcile_audit_window(
+            org_id=org, stream="release", previous=None,
+            ordered=events[:2], expected_sequence=3,
+        )
+    head = reconcile_audit_window(
+        org_id=org, stream="release", previous=None,
+        ordered=events, expected_sequence=3,
+        expected_head=events[-1].event_hash,
+    )
+    assert head.sequence == 3
+
+
+@pytest.mark.parametrize("head", [b"short", "f" * 32, 123])
+def test_malformed_advertised_head_fails_closed(head):
+    org, events = fixture()
+    with pytest.raises(AuditGap):
+        reconcile_audit_window(
+            org_id=org, stream="release", previous=None,
+            ordered=events, expected_head=head,
+        )
