@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -109,6 +110,39 @@ def require_reconciled_checkpoint_head(
         or not hmac.compare_digest(body.head_sha256, reconciled.sha256.hex())
     ):
         raise AuditCheckpointRejected("checkpoint does not match reconciled audit head")
+
+
+def verify_archived_checkpoint(
+    *, raw: bytes, body: AuditCheckpoint, public_der: bytes,
+    expected_key_id: str, minimum_sequence: int,
+    expected_predecessor_sha256: str, minimum_root_generation: int,
+    now: datetime,
+) -> str:
+    """Verify canonical archive bytes and the independently pinned signature."""
+    if not isinstance(raw, bytes) or not 0 < len(raw) <= 16 * 1024:
+        raise AuditCheckpointRejected("invalid archived checkpoint size")
+    try:
+        envelope = json.loads(raw)
+        if not isinstance(envelope, dict) or set(envelope) != {
+            "body", "signature_der_hex",
+        }:
+            raise ValueError("invalid signed envelope")
+        signature_hex = envelope["signature_der_hex"]
+        if not isinstance(signature_hex, str) or len(signature_hex) > 256:
+            raise ValueError("invalid signature encoding")
+        signature = bytes.fromhex(signature_hex)
+        if signed_checkpoint_bytes(body, signature) != raw:
+            raise ValueError("archive body or canonical encoding differs")
+    except (ValueError, TypeError, UnicodeDecodeError) as exc:
+        raise AuditCheckpointRejected("archived checkpoint envelope rejected") from exc
+    return verify_checkpoint(
+        body=body, signature_der=signature, public_der=public_der,
+        expected_key_id=expected_key_id, org_id=body.org_id,
+        incarnation=body.incarnation, stream=body.stream,
+        minimum_sequence=minimum_sequence,
+        expected_predecessor_sha256=expected_predecessor_sha256,
+        minimum_root_generation=minimum_root_generation, now=now,
+    )
 
 
 @dataclass(frozen=True)

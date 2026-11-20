@@ -1,7 +1,9 @@
 """Audit checkpoint signature, predecessor and exact S3 version negative tests."""
+import hashlib
 from datetime import datetime, timezone
 from uuid import uuid4
 import io
+import json
 
 import pytest
 from cryptography.hazmat.primitives import hashes, serialization
@@ -10,7 +12,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from aegentra.audit_checkpoint import (
     AuditCheckpoint, AuditCheckpointRejected, CheckpointArchive,
     checkpoint_message, verify_checkpoint, signed_checkpoint_bytes,
-    require_reconciled_checkpoint_head,
+    require_reconciled_checkpoint_head, verify_archived_checkpoint,
 )
 
 from aegentra.audit_reconcile import VerifiedAuditHead
@@ -159,3 +161,39 @@ def test_checkpoint_must_match_independently_reconciled_head():
     ):
         with pytest.raises(AuditCheckpointRejected):
             require_reconciled_checkpoint_head(body=body, reconciled=mismatch)
+
+
+def test_archived_checkpoint_requires_canonical_bytes_and_valid_signature():
+    body, key, public, signature, now = fixture()
+    raw = signed_checkpoint_bytes(body, signature)
+    def check(value, signing_key=public):
+        return verify_archived_checkpoint(
+            raw=value, body=body, public_der=signing_key,
+            expected_key_id="security-audit-signing-key",
+            minimum_sequence=41, expected_predecessor_sha256="b" * 64,
+            minimum_root_generation=3, now=now,
+        )
+
+    assert check(raw) == hashlib.sha256(raw).hexdigest()
+    wrong_public = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+        serialization.Encoding.DER,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    with pytest.raises(AuditCheckpointRejected):
+        check(raw, wrong_public)
+
+    envelope = json.loads(raw)
+    modified = dict(envelope)
+    modified["body"] = dict(envelope["body"], head_sha256="c" * 64)
+    alternative = dict(envelope)
+    alternative["signature_der_hex"] = key.sign(
+        b"incorrect signing domain", ec.ECDSA(hashes.SHA256()),
+    ).hex()
+    for corrupted in (
+        b"not-json", b"", b" " + raw, raw + b" ",
+        json.dumps(modified).encode(), json.dumps(alternative).encode(),
+        raw.replace(b"signature_der_hex", b"unexpected_signature"),
+        raw + b"\x00",
+    ):
+        with pytest.raises(AuditCheckpointRejected):
+            check(corrupted)

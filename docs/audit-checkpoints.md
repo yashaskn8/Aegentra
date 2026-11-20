@@ -22,3 +22,9 @@ Object Lock retention. The present code supplies cryptographic and
 exact-version storage **primitives**, not independent archive witnessing
 or proof of administrator-tamper resilience in deployed AWS.
 All CI fixtures use artificial test keys and fake S3.
+
+`verify_archived_checkpoint` additionally rejects noncanonical, altered or
+malformed signed envelopes and verifies their P-256 signature against a pinned
+public key and expected checkpoint context. Consumers should validate the exact
+S3 version with `read_exact` before calling it. Passing both checks is not
+proof of complete independent source acquisition or deployed Object Lock.
