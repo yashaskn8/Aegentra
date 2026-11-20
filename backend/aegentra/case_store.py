@@ -145,8 +145,8 @@ async def link_evidence(
         session, org_id=org_id, identity_id=identity_id,
         case_id=case_id, require_write=True,
     )
-    if case.status != "OPEN":
-        raise CaseNotFound("case not open")
+    if case.status == "CLOSED":
+        raise CaseNotFound("case is closed")
     evidence = await session.scalar(
         select(Evidence).where(
             Evidence.org_id == org_id,

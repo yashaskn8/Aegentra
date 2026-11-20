@@ -57,7 +57,7 @@ async def exercise_case_scope() -> None:
     org, other_org = uuid4(), uuid4()
     analyst, viewer = uuid4(), uuid4()
     asset_a, asset_b, foreign_asset = uuid4(), uuid4(), uuid4()
-    ev_a, ev_b, foreign_ev = uuid4(), uuid4(), uuid4()
+    ev_a, ev_b, foreign_ev, ev_after_triage = (uuid4() for _ in range(4))
     settings = OidcSettings(
         issuer="https://idp.example.test/",
         authorization_url="https://idp.example.test/authorize",
@@ -104,6 +104,10 @@ async def exercise_case_scope() -> None:
                 {
                     "id": foreign_ev, "org_id": other_org, "asset_id": foreign_asset,
                     "digest": b"c" * 32, "kind": "synthetic",
+                },
+                {
+                    "id": ev_after_triage, "org_id": org, "asset_id": asset_a,
+                    "digest": b"d" * 32, "kind": "synthetic",
                 },
             ])
 
@@ -190,6 +194,14 @@ async def exercise_case_scope() -> None:
             assert response.status_code == 200, response.text
             assert response.json()["status"] == "CONTAINMENT_REQUESTED"
             assert response.json()["revision"] == 3
+            added_after_triage = await analyst_client.post(
+                f"/v1/cases/{case_id}/evidence",
+                json={"evidence_id": str(ev_after_triage)}, headers=headers,
+            )
+            assert added_after_triage.status_code == 201, added_after_triage.text
+            assert (await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence/{ev_after_triage}/meta"
+            )).status_code == 200
             invalid = await analyst_client.post(
                 f"/v1/cases/{case_id}/transition",
                 json={"status": "CONTAINED", "expected_revision": 3},
