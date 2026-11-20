@@ -46,3 +46,17 @@ PostgreSQL integration workflows plus frontend build and CDK synthesis.
 GitHub Actions success verifies only the synthetic contracts in that commit,
 not resistance to real-world bypass or production deployment. No Docker,
 branches, pull requests, AWS mutations or protected serving occurred.
+
+## Follow-up: identity lifecycle and upload finalization
+
+| Finding | Risk | Code-level remediation | Test |
+|---|---|---|---|
+| RT-05: browser session did not pin the identity's membership version | Old cookie could become valid again after deactivation/reactivation, or remain valid after a role change | Session-version check, automatic monotonically advancing identity version on sensitive changes, and nullable legacy-session invalidation via migration 0018 (`7702f29`) | Native PostgreSQL reactivation/role-change regression in `test_auth_integration.py` |
+| RT-06: upload finalization could accept literal S3 `null` version | Invalid immutable-version claim could irreversibly consume an otherwise valid upload ticket | Reject `null` both at API schema and transactional finalization boundary (`b2a3784`) | Native PostgreSQL finalization rejection then valid retry in `test_upload_integration.py` |
+
+**Limits:** Synthetic network/OIDC and S3 fixtures remain in use. The
+membership trigger only guards updates that go through the ordinary PostgreSQL
+write path and does not defend against a privileged database administrator.
+There is no independent IAM/credential revocation drill, production OIDC
+provider validation, or real versioned S3 upload qualification in this pass.
+The protected-production release verdict remains **NO-GO**.
