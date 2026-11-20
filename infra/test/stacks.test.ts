@@ -62,5 +62,9 @@ test("security archive has versioning and S3 object lock", () => {
     ObjectLockEnabled: true,
     VersioningConfiguration: { Status: "Enabled" },
   });
-  template.resourceCountIs("AWS::KMS::Key", 1);
+  template.resourceCountIs("AWS::KMS::Key", 3);
+  template.hasResourceProperties("AWS::KMS::Key", {
+    KeySpec: "ECC_NIST_P256",
+    KeyUsage: "SIGN_VERIFY",
+  });
 });

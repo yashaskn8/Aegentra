@@ -1,5 +1,5 @@
 import {
-  RemovalPolicy, Stack, StackProps,
+  CfnOutput, RemovalPolicy, Stack, StackProps,
   aws_kms as kms,
   aws_s3 as s3,
 } from "aws-cdk-lib";
@@ -16,6 +16,28 @@ export class SecurityStack extends Stack {
     const archiveKey = new kms.Key(this, "ArchiveKey", {
       enableKeyRotation: true,
       removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    // These signing keys are intentionally NOT granted to the workload,
+    // API, release authority, or default EC2 principals. A separately
+    // reviewed custodian must provision narrow, independent signer policies.
+    const witnessSigningKey = new kms.Key(this, "WitnessSigningKey", {
+      keySpec: kms.KeySpec.ECC_NIST_P256,
+      keyUsage: kms.KeyUsage.SIGN_VERIFY,
+      removalPolicy: RemovalPolicy.RETAIN,
+      description: "Independent immutable witness certificate signing only",
+    });
+    const vetoSigningKey = new kms.Key(this, "SecurityVetoSigningKey", {
+      keySpec: kms.KeySpec.ECC_NIST_P256,
+      keyUsage: kms.KeyUsage.SIGN_VERIFY,
+      removalPolicy: RemovalPolicy.RETAIN,
+      description: "Independent live security-account veto signing only",
+    });
+    new CfnOutput(this, "WitnessSigningKeyArn", {
+      value: witnessSigningKey.keyArn,
+    });
+    new CfnOutput(this, "SecurityVetoSigningKeyArn", {
+      value: vetoSigningKey.keyArn,
     });
 
     new s3.Bucket(this, "AuditProofArchive", {
