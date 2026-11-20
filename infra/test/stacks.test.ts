@@ -45,6 +45,15 @@ test("workload database and evidence are private and encrypted", () => {
     VersioningConfiguration: { Status: "Enabled" },
   });
   template.resourceCountIs("AWS::EC2::NatGateway", 0);
+  template.resourceCountIs("AWS::EC2::InternetGateway", 0);
+  const queues = Object.values(template.findResources("AWS::SQS::Queue"));
+  assert.equal(queues.filter((queue: any) => queue.Properties.FifoQueue === true).length, 2);
+  template.hasResourceProperties("AWS::EC2::VPCEndpoint", {
+    VpcEndpointType: "Interface",
+    PrivateDnsEnabled: true,
+  });
+  template.resourceCountIs("AWS::EC2::Instance", 0);
+  template.resourceCountIs("AWS::EC2::VPCEndpoint", 1);
 });
 
 test("security archive has versioning and S3 object lock", () => {

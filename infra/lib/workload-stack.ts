@@ -1,6 +1,7 @@
 import {
-  Duration, RemovalPolicy, Stack, StackProps,
+  CfnOutput, Duration, RemovalPolicy, Stack, StackProps,
   aws_ec2 as ec2,
+  aws_iam as iam,
   aws_kms as kms,
   aws_rds as rds,
   aws_s3 as s3,
@@ -47,7 +48,58 @@ export class WorkloadStack extends Stack {
       deadLetterQueue: { queue: dlq, maxReceiveCount: 5 },
     });
 
-    new rds.DatabaseInstance(this, "StateDatabase", {
+    // No native worker VM is provisioned by this stack. These resources are
+    // for a separately deployed and independently qualified systemd worker.
+    const outboxDlq = new sqs.Queue(this, "OutboxDeadLetterQueue", {
+      fifo: true,
+      encryption: sqs.QueueEncryption.KMS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: Duration.days(14),
+    });
+    const outboxQueue = new sqs.Queue(this, "OutboxFifoQueue", {
+      fifo: true,
+      encryption: sqs.QueueEncryption.KMS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: Duration.minutes(1),
+      retentionPeriod: Duration.days(7),
+      deadLetterQueue: { queue: outboxDlq, maxReceiveCount: 5 },
+    });
+
+    const workerGroup = new ec2.SecurityGroup(this, "OutboxWorkerSecurityGroup", {
+      vpc,
+      allowAllOutbound: false,
+      description: "Only PostgreSQL and private SQS interface endpoint",
+    });
+    const endpointGroup = new ec2.SecurityGroup(this, "SqsEndpointSecurityGroup", {
+      vpc,
+      allowAllOutbound: false,
+      description: "Only HTTPS from native outbox worker",
+    });
+    endpointGroup.addIngressRule(
+      workerGroup, ec2.Port.tcp(443), "Private SQS calls by outbox worker",
+    );
+    workerGroup.addEgressRule(
+      endpointGroup, ec2.Port.tcp(443), "Private SQS endpoint only",
+    );
+    vpc.addInterfaceEndpoint("SqsPrivateEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.SQS,
+      privateDnsEnabled: true,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [endpointGroup],
+    });
+
+    const outboxRole = new iam.Role(this, "OutboxWorkerRole", {
+      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
+      description: "SQS SendMessage only; no security-account or witness authority",
+    });
+    outboxQueue.grantSendMessages(outboxRole);
+    new CfnOutput(this, "OutboxQueueUrl", { value: outboxQueue.queueUrl });
+    new CfnOutput(this, "OutboxWorkerRoleArn", { value: outboxRole.roleArn });
+    new CfnOutput(this, "OutboxWorkerSecurityGroupId", {
+      value: workerGroup.securityGroupId,
+    });
+
+    const stateDatabase = new rds.DatabaseInstance(this, "StateDatabase", {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       engine: rds.DatabaseInstanceEngine.postgres({
@@ -64,5 +116,8 @@ export class WorkloadStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
       multiAz: false, // Pilot only. Production HA requires a reviewed separate profile.
     });
+    stateDatabase.connections.allowFrom(
+      workerGroup, ec2.Port.tcp(5432), "Native outbox PostgreSQL connection",
+    );
   }
 }
