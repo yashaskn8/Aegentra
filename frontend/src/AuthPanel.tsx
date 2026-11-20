@@ -83,6 +83,7 @@ export default function AuthPanel() {
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": session.user.csrf_token,
+          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({ slug, criticality }),
       });

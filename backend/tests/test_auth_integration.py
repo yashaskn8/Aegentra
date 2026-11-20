@@ -12,7 +12,8 @@ from sqlalchemy import delete, insert, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.api import create_app
-from aegentra.db import Asset, BrowserSession, Identity, LoginChallenge, Organization
+from aegentra.db import (Asset, AuditEntry, AuditStream, BrowserSession, Identity,
+                         IdempotencyRequest, LoginChallenge, Organization, OutboxEvent)
 from aegentra.oidc import OidcSettings
 from aegentra.persistence import make_engine
 
@@ -112,9 +113,11 @@ async def _exercise_auth() -> None:
             assert (await client.post(
                 "/v1/assets",
                 json={"slug": "safe-app", "criticality": "LOW"},
+                headers={"Idempotency-Key": "asset-create-0001"},
             )).status_code == 403
 
-            headers = {"Origin": settings.origin, "X-CSRF-Token": csrf}
+            headers = {"Origin": settings.origin, "X-CSRF-Token": csrf,
+                       "Idempotency-Key": "asset-create-0001"}
             created = await client.post(
                 "/v1/assets",
                 json={"slug": "safe-app", "criticality": "LOW"},
@@ -122,14 +125,42 @@ async def _exercise_auth() -> None:
             )
             assert created.status_code == 201
             assert created.json()["slug"] == "safe-app"
-            assert (await client.post(
+            repeated = await client.post(
                 "/v1/assets",
                 json={"slug": "safe-app", "criticality": "LOW"},
                 headers=headers,
+            )
+            assert repeated.status_code == 201
+            assert repeated.json()["id"] == created.json()["id"]
+            assert (await client.post(
+                "/v1/assets",
+                json={"slug": "different-app", "criticality": "LOW"},
+                headers=headers,
+            )).status_code == 409
+            assert (await client.post(
+                "/v1/assets",
+                json={"slug": "safe-app", "criticality": "LOW"},
+                headers={**headers, "Idempotency-Key": "asset-create-0002"},
             )).status_code == 409
             visible = await client.get("/v1/assets")
             assert visible.status_code == 200
             assert [row["slug"] for row in visible.json()["items"]] == ["safe-app"]
+
+            async with admin.connect() as connection:
+                from sqlalchemy import select
+                entries = (
+                    await connection.execute(
+                        select(AuditEntry).where(AuditEntry.org_id == org)
+                    )
+                ).all()
+                outbox = (
+                    await connection.execute(
+                        select(OutboxEvent).where(OutboxEvent.org_id == org)
+                    )
+                ).all()
+                assert len(entries) == len(outbox) == 1
+                assert entries[0].event_type == "ASSET_REGISTERED"
+                assert entries[0].previous_hash == b"\\x00" * 32
 
             # A role revocation is read from the database on every request.
             async with admin.begin() as session:
@@ -140,6 +171,10 @@ async def _exercise_auth() -> None:
     finally:
         try:
             async with admin.begin() as session:
+                await session.execute(delete(IdempotencyRequest).where(IdempotencyRequest.org_id == org))
+                await session.execute(delete(OutboxEvent).where(OutboxEvent.org_id == org))
+                await session.execute(delete(AuditEntry).where(AuditEntry.org_id == org))
+                await session.execute(delete(AuditStream).where(AuditStream.org_id == org))
                 await session.execute(delete(BrowserSession).where(BrowserSession.org_id == org))
                 await session.execute(delete(LoginChallenge))
                 await session.execute(delete(Asset).where(Asset.org_id.in_([org, other_org])))

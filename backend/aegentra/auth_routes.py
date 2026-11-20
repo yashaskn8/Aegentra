@@ -10,7 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from aegentra.asset_store import create_asset, list_assets
+from aegentra.asset_store import list_assets
+from aegentra.audit import IdempotencyConflict, register_asset
 from aegentra.auth_store import AuthStore, AuthenticationError, NotEnrolledError, Principal
 from aegentra.oidc import (
     OidcClient, OidcError, OidcSettings, authorization_url,
@@ -132,23 +133,21 @@ def enable_auth(
     async def add_asset(
         body: AssetInput,
         response: Response,
+        idempotency_key: str = Header(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$"),
         user: Principal = Depends(mutation_principal),
     ) -> dict:
         if user.role not in {"ADMIN", "EDITOR"}:
             raise HTTPException(status_code=403, detail="asset creation not permitted")
         try:
             async with organization_session(sessions, user.org_id) as session:
-                item = await create_asset(
-                    session, org_id=user.org_id, slug=body.slug,
-                    criticality=body.criticality,
+                result = await register_asset(
+                    session, org_id=user.org_id, actor_id=user.identity_id,
+                    key=idempotency_key, slug=body.slug, criticality=body.criticality,
                 )
-                result = {
-                    "id": str(item.id),
-                    "slug": item.slug,
-                    "criticality": item.criticality,
-                }
         except IntegrityError as exc:
             raise HTTPException(status_code=409, detail="asset already exists") from exc
+        except IdempotencyConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         response.headers["Cache-Control"] = "no-store"
         return result
 

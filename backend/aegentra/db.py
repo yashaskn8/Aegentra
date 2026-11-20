@@ -4,10 +4,11 @@ from __future__ import annotations
 from uuid import UUID, uuid4
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, LargeBinary, String, Uuid, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 class Base(DeclarativeBase):
@@ -103,4 +104,79 @@ class BrowserSession(Base):
             ["org_id", "identity_id"], ["identities.org_id", "identities.id"]
         ),
         CheckConstraint("octet_length(token_hash) = 32", name="session_token_hash_length"),
+    )
+
+
+class AuditStream(Base):
+    """Transactional chain head. Independent archive witnessing is a later stage."""
+
+    __tablename__ = "audit_streams"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    stream: Mapped[str] = mapped_column(String(32), primary_key=True)
+    sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    head_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organizations.id"]),
+        CheckConstraint("octet_length(head_hash) = 32", name="audit_head_length"),
+    )
+
+
+class AuditEntry(Base):
+    __tablename__ = "audit_entries"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    stream: Mapped[str] = mapped_column(String(32), primary_key=True)
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    actor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    previous_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    event_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    body_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "stream"], ["audit_streams.org_id", "audit_streams.stream"]),
+        CheckConstraint("octet_length(previous_hash) = 32", name="audit_prev_length"),
+        CheckConstraint("octet_length(event_hash) = 32", name="audit_event_length"),
+        CheckConstraint("octet_length(body_hash) = 32", name="audit_body_length"),
+    )
+
+
+class OutboxEvent(Base):
+    __tablename__ = "outbox_events"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    stream: Mapped[str] = mapped_column(String(32), nullable=False)
+    sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "stream", "sequence"],
+            ["audit_entries.org_id", "audit_entries.stream", "audit_entries.sequence"],
+        ),
+        UniqueConstraint("org_id", "stream", "sequence", name="uq_outbox_event"),
+    )
+
+
+class IdempotencyRequest(Base):
+    __tablename__ = "idempotency_requests"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    identity_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    route: Mapped[str] = mapped_column(String(80), primary_key=True)
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    request_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    response: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "identity_id"], ["identities.org_id", "identities.id"]),
+        CheckConstraint("octet_length(request_hash) = 32", name="idempotency_hash_length"),
     )
