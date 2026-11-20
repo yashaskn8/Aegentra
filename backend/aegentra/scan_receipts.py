@@ -34,9 +34,12 @@ async def record_validated_receipt(
 ) -> ValidatedLead:
     if now.tzinfo is None:
         raise ReceiptConflict("trusted validator clock must be timezone-aware")
-    lead = validate_guest_result(
-        expected=expected, original_source=original_source, raw_result=raw_result,
-    )
+    try:
+        lead = validate_guest_result(
+            expected=expected, original_source=original_source, raw_result=raw_result,
+        )
+    except FrameError as exc:
+        raise ReceiptConflict("untrusted or invalid guest frame") from exc
     result_digest = bytes.fromhex(lead.result_sha256)
     job = await session.scalar(
         select(ScanJob).where(
