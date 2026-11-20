@@ -26,12 +26,13 @@ from aegentra.observation_crypto import (
 async def _guarded_target(
     session: AsyncSession, org_id: UUID, target_id: UUID
 ) -> tuple[ReleaseOrgGuard, ReleaseTarget]:
-    # Root FOR SHARE needs SELECT only; it conflicts with authority FOR UPDATE.
-    # Fixed lock order remains root then target.
+    # A SERIALIZABLE snapshot reads the org root before locking the target.
+    # A target-local freeze advances its epoch; the observer has no org writes.
+    # Concurrent org-root changes must retry from a fresh transaction.
     root = await session.scalar(
         select(ReleaseOrgGuard).where(
             ReleaseOrgGuard.org_id == org_id
-        ).with_for_update(read=True)
+        )
     )
     if root is None:
         raise ObservationRejected("installation root unavailable")
