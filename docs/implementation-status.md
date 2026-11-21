@@ -123,6 +123,29 @@ worker, witness, gateway, or qualified offline guest. An entry-point/reachabilit
 review and actual native deployment evidence are required; do not label test-only
 code as operational coverage.
 
+## Read-only EC2 launch preflight — 21 November 2026
+
+- `python -m aegentra.native_launch_preflight` now checks a fenced
+  resource-free RESERVED attempt before and after read-only AWS calls.
+- A pinned private AMI and root EBS snapshot must have exact owner,
+  state, encryption, KMS and size properties; the separate native isolation
+  collector must verify its conservative VPC/route/DNS snapshot.
+- The preflight constructs one fixed guest instance and two encrypted raw
+  EBS requests with distinct idempotency tokens, then prints only a
+  request hash and `SHADOW_ONLY_EXTERNAL_QUALIFICATION_REQUIRED`.
+  It **never** invokes RunInstances, CreateVolume, AttachVolume or any
+  other AWS mutation, and it does not authorize live guest execution.
+- New adversarial tests cover public/wrong-owner/unpinned AMIs, root/snapshot
+  changes, network/pin drift and stale DB leases. All three CI workflows
+  passed on commit `81ff2c42023901b7f65ec610a584c257cd283b1a`.
+- [Native preflight runbook](native-launch-preflight.md) documents its
+  complete operating and qualification boundary.
+
+**Still missing:** Independently approved, actually deployed EC2 create,
+attach, terminate and timeout supervisor; guaranteed journal-before-use,
+native physical/AMI trust, quotas, and independently witnessed hostile-input
+and disposal drills. This remains a production NO-GO.
+
 ## Native guest custody hardening — 21 November 2026
 
 - The bridge now rejects two identical or unspaced detached inventories.

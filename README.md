@@ -2,7 +2,7 @@
 
 Aegentra is an evidence-first software supply-chain security project based on the **SentinelAI SA-1.1** architectural specification.
 
-**Current state: S1 foundation in shadow mode.** This is not a production security product. No live scans, deployment approvals, release activation, or AWS infrastructure are enabled.
+**Current state: S1 foundation and nonproduction S2/S3 reference contracts in shadow mode.** This is not a production security product. No live scans, deployment approvals, release activation, or AWS infrastructure are enabled.
 
 ## Stack
 
@@ -43,6 +43,15 @@ Vite's development proxy forwards `/v1` to the local FastAPI service. Review and
 Read [AGENTS.md](AGENTS.md). Keep changes small, testable, and honest about gaps. The architecture's release authority, witness, protected origin, and offline EC2 workers are **future milestones**, not implemented controls.
 
 See [implementation status](docs/implementation-status.md).
+
+## Native S2 preflight (nonproduction)
+
+The read-only `python -m aegentra.native_launch_preflight` entrypoint checks
+an active fenced DB attempt, independently pinned AMI/root snapshot and AWS
+isolation inventory, then produces a constrained **unexecuted** request-plan
+digest. It never creates, attaches or launches an AWS resource. See
+[the native launch preflight runbook](docs/native-launch-preflight.md) and
+[physical detach verification](docs/native-detach-operations.md).
 
 ## Authenticated shadow projections
 
