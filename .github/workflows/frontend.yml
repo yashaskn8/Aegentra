@@ -20,3 +20,5 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check TypeScript and build Vite
         run: npm run build
+      - name: Test scoped console rendering
+        run: npm run test
