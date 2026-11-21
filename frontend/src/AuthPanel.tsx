@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import CasesPanel from "./CasesPanel";
 
@@ -19,8 +19,8 @@ type Session =
   | { state: "checking" | "unconfigured" | "signed-out" | "error" }
   | { state: "authenticated"; user: User };
 
-async function getSession(): Promise<Session> {
-  const response = await fetch("/v1/me", { credentials: "same-origin", cache: "no-store" });
+async function getSession(signal: AbortSignal): Promise<Session> {
+  const response = await fetch("/v1/me", { credentials: "same-origin", cache: "no-store", signal });
   if (response.status === 404) return { state: "unconfigured" };
   if (response.status === 401) return { state: "signed-out" };
   if (!response.ok) return { state: "error" };
@@ -45,13 +45,46 @@ export default function AuthPanel() {
   const [criticality, setCriticality] = useState("LOW");
   const [busy, setBusy] = useState(false);
   const [truncated, setTruncated] = useState(false);
+  const sessionEpoch = useRef(0);
+  const recheckSession = useRef<() => void>(() => {});
 
   useEffect(() => {
     let active = true;
-    void getSession()
-      .then((result) => { if (active) setSession(result); })
-      .catch(() => { if (active) setSession({ state: "error" }); });
-    return () => { active = false; };
+    let pending: AbortController | null = null;
+    const refresh = () => {
+      pending?.abort();
+      const controller = new AbortController();
+      pending = controller;
+      sessionEpoch.current += 1;
+      // Never display an earlier identity's cached data during reauthorization.
+      setSession({ state: "checking" });
+      setAssets([]);
+      setTruncated(false);
+      setAssetError("");
+      void getSession(controller.signal)
+        .then((result) => {
+          if (active && !controller.signal.aborted) setSession(result);
+        })
+        .catch(() => {
+          if (active && !controller.signal.aborted) setSession({ state: "error" });
+        });
+    };
+    const whenVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    recheckSession.current = refresh;
+    refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", whenVisible);
+    return () => {
+      active = false;
+      pending?.abort();
+      recheckSession.current = () => {};
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", whenVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -59,6 +92,10 @@ export default function AuthPanel() {
     let active = true;
     void fetch("/v1/assets", { credentials: "same-origin", cache: "no-store" })
       .then(async (response) => {
+        if (response.status === 401 || response.status === 403) {
+          recheckSession.current();
+          throw new Error("Asset access changed");
+        }
         if (!response.ok) throw new Error("Assets unavailable");
         const data: { items: Asset[]; truncated: boolean } = await response.json();
         if (!Array.isArray(data.items)) throw new Error("Invalid asset response");
@@ -77,6 +114,7 @@ export default function AuthPanel() {
     if (session.state !== "authenticated" || busy) return;
     setBusy(true);
     setAssetError("");
+    const expectedEpoch = sessionEpoch.current;
     try {
       const response = await fetch("/v1/assets", {
         method: "POST",
@@ -88,14 +126,21 @@ export default function AuthPanel() {
         },
         body: JSON.stringify({ slug, criticality }),
       });
+      if (response.status === 401 || response.status === 403) {
+        recheckSession.current();
+        return;
+      }
       if (!response.ok) throw new Error(
         response.status === 409 ? "An asset with this name already exists." : "Could not create asset."
       );
       const created: Asset = await response.json();
+      if (expectedEpoch !== sessionEpoch.current) return;
       setAssets((current) => [...current, created].sort((a, b) => a.slug.localeCompare(b.slug)));
       setSlug("");
     } catch (error) {
-      setAssetError(error instanceof Error ? error.message : "Could not create asset.");
+      if (expectedEpoch === sessionEpoch.current) {
+        setAssetError(error instanceof Error ? error.message : "Could not create asset.");
+      }
     } finally {
       setBusy(false);
     }
@@ -111,7 +156,9 @@ export default function AuthPanel() {
         headers: { "X-CSRF-Token": session.user.csrf_token },
       });
       if (!response.ok) throw new Error("Logout failed");
+      sessionEpoch.current += 1;
       setAssets([]);
+      setTruncated(false);
       setSession({ state: "signed-out" });
     } catch {
       setAssetError("Sign-out failed. Please retry.");
@@ -177,7 +224,7 @@ export default function AuthPanel() {
             </form>
           )}
           {assetError && <p className="workspace-error" role="alert">{assetError}</p>}
-          <CasesPanel user={session.user} assets={assets} />
+          <CasesPanel user={session.user} assets={assets} onAccessLost={() => recheckSession.current()} />
         </div>
       )}
     </section>

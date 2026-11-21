@@ -11,7 +11,7 @@ type CaseSummary = {
   revision: number;
 };
 
-export default function CasesPanel({ user, assets }: { user: User; assets: Asset[] }) {
+export default function CasesPanel({ user, assets, onAccessLost }: { user: User; assets: Asset[]; onAccessLost: () => void }) {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [assetId, setAssetId] = useState("");
   const [title, setTitle] = useState("");
@@ -27,6 +27,10 @@ export default function CasesPanel({ user, assets }: { user: User; assets: Asset
       cache: "no-store",
       signal: controller.signal,
     }).then(async (response) => {
+      if (response.status === 401 || response.status === 403) {
+        onAccessLost();
+        return;
+      }
       if (!response.ok) throw new Error("Could not load assigned cases");
       const value: { items: CaseSummary[]; truncated?: boolean } = await response.json();
       if (!Array.isArray(value.items)) throw new Error("Invalid case response");
@@ -54,6 +58,10 @@ export default function CasesPanel({ user, assets }: { user: User; assets: Asset
         },
         body: JSON.stringify({ asset_id: assetId, title: title.trim() }),
       });
+      if (response.status === 401 || response.status === 403) {
+        onAccessLost();
+        return;
+      }
       if (!response.ok) throw new Error(
         response.status === 403 ? "Your role cannot create cases." :
         response.status === 404 ? "Selected asset is unavailable." : "Could not create case."
@@ -89,9 +97,21 @@ export default function CasesPanel({ user, assets }: { user: User; assets: Asset
           expected_revision: item.revision,
         }),
       });
+      if (response.status === 401 || response.status === 403) {
+        onAccessLost();
+        return;
+      }
+      if (response.status === 409 || response.status === 412) {
+        // A stale revision must not leave actionable old case snapshots.
+        setCases([]);
+        setTruncated(false);
+      }
+      if (response.status === 404) {
+        setCases((current) => current.filter((record) => record.id !== item.id));
+      }
       if (!response.ok) {
         throw new Error(
-          response.status === 409
+          response.status === 409 || response.status === 412
             ? "The incident changed. Refresh this page before trying again."
             : response.status === 403
               ? "Incident transition is not permitted for your identity."
