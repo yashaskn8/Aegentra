@@ -54,14 +54,15 @@ async def _locked(
         GuestAttempt.org_id == org_id, GuestAttempt.job_id == job_id,
         GuestAttempt.generation == generation,
     ).with_for_update())
-    if job is None or attempt is None or job.attempt_generation != generation:
-        raise CreationConflict("unavailable or fenced physical scan attempt")
+    if job is None or attempt is None:
+        raise CreationConflict("unavailable physical scan attempt")
     return job, attempt
 
 
 def _live(job: ScanJob, attempt: GuestAttempt, now: datetime) -> bool:
     if (
-        job.status != "LEASED" or job.lease_nonce is None
+        job.attempt_generation != attempt.generation
+        or job.status != "LEASED" or job.lease_nonce is None
         or job.lease_expires is None or job.attempt_deadline is None
         or attempt.state in {"QUARANTINED", "DISPOSED"}
     ):
