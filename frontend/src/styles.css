@@ -90,3 +90,25 @@ footer { padding: 25px 0 44px; border-top: 1px solid #22343b; color: #759397; fo
   overflow-wrap: anywhere;
   margin: 0.3rem 0;
 }
+
+
+.operations-panel {
+  padding-top: 1.25rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--line, #344051);
+}
+.operations-list {
+  list-style: none;
+  margin: 0.65rem 0;
+  padding: 0;
+}
+.operations-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--line, #344051);
+}
+.operations-list small {
+  overflow-wrap: anywhere;
+}

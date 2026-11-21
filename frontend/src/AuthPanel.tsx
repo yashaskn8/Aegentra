@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import CasesPanel from "./CasesPanel";
+import OperationsPanel from "./OperationsPanel";
 
 type User = {
   identity_id: string;
@@ -225,6 +226,9 @@ export default function AuthPanel() {
           )}
           {assetError && <p className="workspace-error" role="alert">{assetError}</p>}
           <CasesPanel user={session.user} assets={assets} onAccessLost={() => recheckSession.current()} />
+          {(session.user.role === "ADMIN" || session.user.role === "ANALYST") && (
+            <OperationsPanel onAccessLost={() => recheckSession.current()} />
+          )}
         </div>
       )}
     </section>
