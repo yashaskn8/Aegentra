@@ -6,7 +6,9 @@ then commits a terminal outcome. Any ambiguity blocks subsequent guest use.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
+import hashlib
+import hmac
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,6 +21,7 @@ from aegentra.db import (
     GuestAttempt, GuestCreateIntent, GuestPhysicalOperation, ScanJob,
 )
 from aegentra.guest_creation import _live, _locked
+from aegentra.scan_leases import renew_lease
 
 
 class PhysicalConflict(ValueError):
@@ -90,6 +93,59 @@ async def load_operation_state(
         or job.attempt_deadline is None or now >= job.attempt_deadline
     )
     return expected, due
+
+
+async def heartbeat_physical_attempt(
+    session: AsyncSession, *, org_id: UUID, job_id: UUID,
+    generation: int, nonce: str, now: datetime,
+) -> str:
+    """One 30-second supervisor heartbeat: RENEWED, STOP_REQUIRED or RECONCILE.
+
+    The lease, physical generation, original nonce and journal are checked
+    together under DB row locks. No network requests belong in this transaction.
+    Uncertain in-flight AWS operations cannot be replayed or cleared here.
+    """
+    job, attempt, _, operations = await _source(
+        session, org_id=org_id, job_id=job_id, generation=generation, now=now,
+    )
+    if (
+        not isinstance(nonce, str) or not nonce.isascii()
+        or not hmac.compare_digest(
+            attempt.nonce_sha256, hashlib.sha256(nonce.encode("ascii")).digest(),
+        )
+    ):
+        raise PhysicalConflict("supervisor nonce does not match original attempt")
+
+    if (
+        attempt.created_at.tzinfo is None
+        or now < attempt.created_at
+        or job.attempt_deadline is not None
+        and job.attempt_deadline > attempt.created_at + timedelta(minutes=8)
+    ):
+        raise PhysicalConflict("physical attempt clock or deadline is not trustworthy")
+
+    # An earlier termination request, pending AWS callback, or conflicting
+    # journal outcome requires manual reconciliation, not a second AWS call.
+    if "TERMINATE" in operations:
+        return "RECONCILE"
+    if (
+        not _live(job, attempt, now)
+        or attempt.state != "INSTANCE_RECORDED"
+    ):
+        if any(op.state == "PREPARED" for op in operations.values()):
+            return "RECONCILE"
+        return "STOP_REQUIRED"
+    if any(op.state in {"UNKNOWN", "REQUESTED"} for op in operations.values()):
+        return "RECONCILE"
+
+    # Identical DB transaction; renew_lease uses the original nonce and
+    # never extends the fixed eight-minute attempt deadline.
+    if not await renew_lease(
+        session, org_id=org_id, job_id=job_id,
+        generation=generation, nonce=nonce, now=now,
+    ):
+        return "STOP_REQUIRED"
+    return "RENEWED"
 
 
 async def prepare_operation(
