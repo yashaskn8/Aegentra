@@ -17,7 +17,7 @@ from aegentra.content_manifest import ManifestError, parse_manifest_json
 from aegentra.staging import UploadConflict, UploadUnavailable, create_ticket, finalize_ticket
 from aegentra.staging_signer import StagingSigner
 from aegentra.case_store import (CaseNotFound, accessible_case, evidence_metadata,
-                                 link_evidence, list_member_cases, register_case)
+                                 link_evidence, list_case_evidence, list_member_cases, register_case)
 from aegentra.auth_store import AuthStore, AuthenticationError, NotEnrolledError, Principal
 from aegentra.oidc import (
     OidcClient, OidcError, OidcSettings, authorization_url,
@@ -277,6 +277,27 @@ def enable_auth(
             raise HTTPException(status_code=404, detail="incident unavailable") from exc
         except IncidentConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @router.get("/cases/{case_id}/evidence")
+    async def case_evidence_list(
+        case_id: UUID, response: Response,
+        cursor: str | None = Query(default=None, min_length=1, max_length=256,
+                                   pattern=r"^[A-Za-z0-9_-]+$"),
+        page_size: int = Query(default=50, ge=1, le=100),
+        user: Principal = Depends(principal),
+    ) -> dict:
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                result = await list_case_evidence(
+                    session, org_id=user.org_id, identity_id=user.identity_id,
+                    case_id=case_id, cursor=cursor, page_size=page_size,
+                )
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="case unavailable") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="invalid evidence cursor") from exc
         response.headers["Cache-Control"] = "no-store"
         return result
 

@@ -5,11 +5,13 @@ No unverified user can create or link evidence bytes through this module.
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -199,4 +201,79 @@ async def evidence_metadata(
         "id": str(evidence.id), "kind": evidence.kind,
         "sha256": evidence.digest.hex(),
         "case_id": str(case_id),
+    }
+
+
+def _decode_evidence_cursor(cursor: str, case_id: UUID) -> tuple[datetime, UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode("ascii")
+        case_hex, timestamp, evidence_hex = raw.split("|")
+        when = datetime.fromisoformat(timestamp)
+        if (
+            case_hex != case_id.hex
+            or when.tzinfo is None
+            or when.utcoffset() is None
+        ):
+            raise ValueError("invalid case evidence cursor")
+        return when, UUID(hex=evidence_hex)
+    except (ValueError, UnicodeError, binascii.Error) as exc:
+        raise ValueError("invalid case evidence cursor") from exc
+
+
+async def list_case_evidence(
+    session: AsyncSession, *, org_id: UUID, identity_id: UUID,
+    case_id: UUID, cursor: str | None = None, page_size: int = 50,
+) -> dict:
+    """Page only linked, same-asset metadata; recheck case membership per page."""
+    case = await accessible_case(
+        session, org_id=org_id, identity_id=identity_id, case_id=case_id,
+    )
+    if not 1 <= page_size <= 100:
+        raise ValueError("page size outside allowed range")
+    query = (
+        select(Evidence, CaseEvidence)
+        .join(
+            CaseEvidence,
+            (CaseEvidence.org_id == Evidence.org_id)
+            & (CaseEvidence.asset_id == Evidence.asset_id)
+            & (CaseEvidence.evidence_id == Evidence.id),
+        )
+        .where(
+            CaseEvidence.org_id == org_id,
+            CaseEvidence.case_id == case_id,
+            CaseEvidence.asset_id == case.asset_id,
+        )
+        .order_by(CaseEvidence.linked_at, CaseEvidence.evidence_id)
+        .limit(page_size + 1)
+    )
+    if cursor is not None:
+        last_time, last_id = _decode_evidence_cursor(cursor, case_id)
+        query = query.where(or_(
+            CaseEvidence.linked_at > last_time,
+            and_(
+                CaseEvidence.linked_at == last_time,
+                CaseEvidence.evidence_id > last_id,
+            ),
+        ))
+    rows = list((await session.execute(query)).all())
+    page = rows[:page_size]
+    next_cursor = None
+    if len(rows) > page_size:
+        last_link = page[-1][1]
+        token = (
+            f"{case_id.hex}|{last_link.linked_at.isoformat()}|"
+            f"{last_link.evidence_id.hex}"
+        )
+        next_cursor = base64.urlsafe_b64encode(token.encode("ascii")).decode("ascii").rstrip("=")
+    return {
+        "items": [
+            {
+                "id": str(evidence.id),
+                "kind": evidence.kind,
+                "sha256": evidence.digest.hex(),
+                "linked_at": link.linked_at.isoformat(),
+            }
+            for evidence, link in page
+        ],
+        "next_cursor": next_cursor,
     }

@@ -172,6 +172,17 @@ async def exercise_case_scope() -> None:
             assert metadata.status_code == 200
             assert metadata.json()["sha256"] == (b"a" * 32).hex()
 
+            first_page = await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence", params={"page_size": 1}
+            )
+            assert first_page.status_code == 200, first_page.text
+            assert [item["id"] for item in first_page.json()["items"]] == [str(ev_a)]
+            assert first_page.json()["next_cursor"] is None
+            assert (await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence",
+                params={"cursor": "@@"},
+            )).status_code == 422
+
             response = await analyst_client.post(
                 f"/v1/cases/{case_id}/transition",
                 json={"status": "TRIAGED", "expected_revision": 1},
@@ -202,6 +213,27 @@ async def exercise_case_scope() -> None:
             assert (await analyst_client.get(
                 f"/v1/cases/{case_id}/evidence/{ev_after_triage}/meta"
             )).status_code == 200
+
+            first_page = await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence", params={"page_size": 1}
+            )
+            assert first_page.status_code == 200
+            assert len(first_page.json()["items"]) == 1
+            assert first_page.json()["next_cursor"]
+            second_page = await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence",
+                params={"page_size": 1, "cursor": first_page.json()["next_cursor"]},
+            )
+            assert second_page.status_code == 200, second_page.text
+            assert second_page.json()["next_cursor"] is None
+            assert {
+                first_page.json()["items"][0]["id"],
+                second_page.json()["items"][0]["id"],
+            } == {str(ev_a), str(ev_after_triage)}
+            assert (await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence",
+                params={"cursor": first_page.json()["next_cursor"] + "garbage"},
+            )).status_code == 422
             invalid = await analyst_client.post(
                 f"/v1/cases/{case_id}/transition",
                 json={"status": "CONTAINED", "expected_revision": 3},
@@ -216,6 +248,9 @@ async def exercise_case_scope() -> None:
                 viewer_me = await sign_in(viewer_client, "viewer")
                 assert (await viewer_client.get("/v1/cases")).json()["items"] == []
                 assert (await viewer_client.get(f"/v1/cases/{case_id}")).status_code == 404
+                assert (await viewer_client.get(
+                    f"/v1/cases/{case_id}/evidence"
+                )).status_code == 404
                 assert (await viewer_client.get(
                     f"/v1/cases/{case_id}/evidence/{ev_a}/meta"
                 )).status_code == 404
