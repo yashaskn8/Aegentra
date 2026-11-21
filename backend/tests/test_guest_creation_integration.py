@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.bridge_journal import reserve_attempt
 from aegentra.guest_physical_operations import (
-    PhysicalConflict, mark_operation_unknown, prepare_operation, record_operation,
+    PhysicalConflict, heartbeat_physical_attempt, mark_operation_unknown,
+    prepare_operation, record_operation,
 )
 from aegentra.db import (
     Asset, AuditEntry, AuditStream, GuestAttempt, GuestCreateIntent,
@@ -155,6 +156,22 @@ async def exercise() -> None:
                 GuestResource.org_id == org, GuestResource.job_id == jobs[0],
             ))).all()) == 3
 
+        # The supervisor can renew only the exact fenced, journaled
+        # physical generation. A wrong nonce must not advance the DB lease.
+        async with organization_session(sessions, org) as s:
+            with pytest.raises(PhysicalConflict, match="nonce"):
+                await heartbeat_physical_attempt(
+                    s, org_id=org, job_id=jobs[0], generation=1,
+                    nonce="not-the-attempt-nonce", now=now + timedelta(seconds=30),
+                )
+            assert await heartbeat_physical_attempt(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                nonce=nonce, now=now + timedelta(seconds=30),
+            ) == "RENEWED"
+            assert (await s.scalar(select(ScanJob.lease_expires).where(
+                ScanJob.org_id == org, ScanJob.id == jobs[0],
+            ))) == now + timedelta(seconds=120)
+
         # Exact raw attachments are globally journaled and strictly ordered.
         async with organization_session(sessions, org) as s:
             with pytest.raises(PhysicalConflict, match="order"):
@@ -200,6 +217,12 @@ async def exercise() -> None:
             assert (await s.scalar(select(GuestAttempt.state).where(
                 GuestAttempt.org_id == org, GuestAttempt.job_id == jobs[0],
             ))) == "INSTANCE_RECORDED"
+        async with organization_session(sessions, org) as s:
+            assert await heartbeat_physical_attempt(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                nonce=nonce, now=now + timedelta(seconds=30),
+            ) == "RECONCILE"
+        # An already-requested stop must never silently issue a second one.
         with pytest.raises(DBAPIError, match="outcome is terminal"):
             async with organization_session(sessions, org) as s:
                 await s.execute(update(GuestPhysicalOperation).where(
@@ -229,6 +252,10 @@ async def exercise() -> None:
             assert (await s.scalar(select(GuestAttempt.state).where(
                 GuestAttempt.org_id == org, GuestAttempt.job_id == jobs[3],
             ))) == "QUARANTINED"
+            assert await heartbeat_physical_attempt(
+                s, org_id=org, job_id=jobs[3], generation=1,
+                nonce=nonce, now=now + timedelta(seconds=30),
+            ) == "STOP_REQUIRED"
             with pytest.raises(PhysicalConflict):
                 await prepare_operation(
                     s, org_id=org, job_id=jobs[3], generation=1,
