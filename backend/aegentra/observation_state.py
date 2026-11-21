@@ -6,7 +6,7 @@ current readback causes HOLD_PROMOTION, not an invented clean verdict.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select, update

@@ -7,7 +7,7 @@ and escape/bypass drills must be tested by independent security custodians.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 

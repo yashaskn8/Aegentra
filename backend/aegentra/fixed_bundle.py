@@ -10,7 +10,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Protocol
+from typing import Literal
 from uuid import UUID
 
 import rfc8785
@@ -22,7 +22,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from aegentra.evidence_verifier import (
     EvidenceMismatch, VersionedBlobReader, verify_versioned_blob,
 )
-from aegentra.fixed_delivery import FixedStaticProfile, UnsupportedDelivery
+from aegentra.fixed_delivery import FixedStaticProfile
+from aegentra.review_crypto import ReviewSubject
 
 _SHA = r"^[0-9a-f]{64}$"
 _KEY = re.compile(r"published/[A-Za-z0-9/_.-]{1,240}\Z")
@@ -204,7 +205,7 @@ def verify_fixed_bundle_attestation(
 
 
 def verify_review_subject_bundle(
-    *, subject: "ReviewSubject", body: FixedBundleAttestation,
+    *, subject: ReviewSubject, body: FixedBundleAttestation,
     signature_der: bytes, verified: VerifiedFixedBundle,
     pinned_verifier_public_der: bytes, expected_verifier_key_id: str,
     now: datetime,
@@ -215,7 +216,6 @@ def verify_review_subject_bundle(
     includes the two-object manifest via its separately signed source proof.
     A separate per-resource script head is still required for actual serving.
     """
-    from aegentra.review_crypto import ReviewSubject
 
     if not isinstance(subject, ReviewSubject):
         raise BundleRejected("review subject type invalid")

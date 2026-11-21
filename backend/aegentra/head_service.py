@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from aegentra.db import ReleaseOrgGuard, ReleasePublication, ReleaseTarget
 from aegentra.gateway_signatures import (
-    AdmissionDenied, HeadSnapshot, SignedHead, head_message,
+    HeadSnapshot, SignedHead, head_message,
     _verify_pinned_key,
 )
 from aegentra.release_state import ReleaseConflict
