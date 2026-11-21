@@ -163,3 +163,39 @@ def verify_attachment_count(
                 raise CustodyError("raw EBS attachment missing or has wrong instance/device")
         elif volume["Attachments"] != [] or volume["State"] != "available":
             raise CustodyError("raw EBS volume already attached or unavailable")
+
+
+def verify_termination_inventory(
+    *, expected: AttemptCustody, observed: LiveInventory,
+) -> None:
+    """Allow termination only for a known live guest and exact raw attachments.
+
+    A shutdown request does not prove that the instance has terminated or
+    that EBS has detached; the independent two-pass detach oracle does that.
+    """
+    verify_live_inventory(expected=expected, observed=observed)
+    if observed.instance["State"]["Name"] not in {
+        "pending", "running", "stopping", "stopped", "shutting-down",
+    }:
+        raise CustodyError("physical termination candidate untrusted")
+    by_id = {v["VolumeId"]: v for v in observed.volumes}
+    for volume_id, device in (
+        (expected.input_volume_id, "/dev/sdf"),
+        (expected.output_volume_id, "/dev/sdg"),
+    ):
+        volume = by_id[volume_id]
+        attachments = volume["Attachments"]
+        if volume["State"] == "available":
+            if attachments != []:
+                raise CustodyError("available EBS has an unexpected attachment")
+        elif (
+            volume["State"] != "in-use"
+            or len(attachments) != 1
+            or not isinstance(attachments[0], dict)
+            or attachments[0].get("InstanceId") != expected.instance_id
+            or attachments[0].get("Device") != device
+            or attachments[0].get("State") not in {
+                "attaching", "attached", "detaching",
+            }
+        ):
+            raise CustodyError("raw EBS volume is not attached to the pinned guest")
