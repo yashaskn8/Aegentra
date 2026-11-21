@@ -123,6 +123,30 @@ worker, witness, gateway, or qualified offline guest. An entry-point/reachabilit
 review and actual native deployment evidence are required; do not label test-only
 code as operational coverage.
 
+## Durable native AWS resource creation intents — 21 November 2026
+
+- Migration `0021_guest_create_intents` adds a tenant-scoped, bridge-only
+  creation-intent ledger with immutable plan/token identity and irreversible
+  PREPARED → RECORDED/UNKNOWN transitions. Only recorded and non-reused
+  physical IDs can advance the staged attempt.
+- `aegentra.guest_creation` durably commits creation intent before AWS IO,
+  enforces INPUT_EBS → OUTPUT_EBS → INSTANCE ordering, current lease
+  generation, stable plan hash, and journaled result/unknown quarantine.
+  Late results remain recorded for cleanup but cannot authorize guest use.
+- `aegentra.native_creation_controller` implements the staged EC2 client
+  adapter behind **default-disabled** live-mutation enablement, with no
+  public API, CLI, daemon or deployed AWS changes.
+- Tests use mock EC2 and native PostgreSQL roles to reject out-of-order,
+  duplicated, altered and ambiguous requests, post-API database failures,
+  stale-generation results and unauthorized cross-tenant reads.
+  See the [native creation runbook](native-creation-controller.md).
+
+**Not yet complete:** Independent permissioned AWS execution, physical
+post-create inventory and approved attach, bounded running/termination,
+device handling, external janitor reconciliation, qualified AMI build and
+actual network/IMDS/egress drills. A synthetic success is not an
+authorization predicate. Production remains NO-GO.
+
 ## Read-only EC2 launch preflight — 21 November 2026
 
 - `python -m aegentra.native_launch_preflight` now checks a fenced

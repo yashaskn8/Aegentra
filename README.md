@@ -53,6 +53,13 @@ digest. It never creates, attaches or launches an AWS resource. See
 [the native launch preflight runbook](docs/native-launch-preflight.md) and
 [physical detach verification](docs/native-detach-operations.md).
 
+A separate **nonproduction, default-disabled** Python creation adapter
+(`aegentra.native_creation_controller`) now journals physical
+`PREPARED`/ `RECORDED`/ `UNKNOWN` requests before any AWS IO,
+quarantines uncertain results, and records immutable physical IDs.
+It is **not** a deployed EC2 worker or an authorization for live creation.
+See [native creation operations](docs/native-creation-controller.md).
+
 ## Authenticated shadow projections
 
 When the OIDC and restricted PostgreSQL API are configured, the console can

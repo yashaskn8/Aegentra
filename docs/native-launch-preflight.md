@@ -83,9 +83,11 @@ request set. No instance, disk or customer input is created or executed.
 
 ## Remaining blocking work
 
-A separately governed controller must securely acquire and persist exact
-native AWS resource IDs **before attachment or use**, handle ambiguous AWS
-timeouts by durable UNKNOWN/quarantine, attach only the intended raw volumes,
+A default-disabled, native library now journals create intents **before**
+AWS IO, records exact physical IDs and quarantines ambiguous results.
+It is not deployed or independently qualified. A separate governed
+supervisor still must verify physical post-create inventory, attach only
+the intended raw volumes,
 enforce an eight-minute attempt deadline and 90-second leases, terminate
 the instance, and invoke the independent two-pass native detach validator.
 Readback, advisory result verification, disposal and recovery remain distinct.
