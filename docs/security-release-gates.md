@@ -16,7 +16,7 @@ or customer TLS behavior are configured correctly.
 | D6 cloud separation | CDK isolated guest VPC, independent-role contracts, cleanup inventory and two physical signing key definitions | Native separate-account EC2/IAM/IMDS/veto negative drills and real cleanup |
 | D7 parser coverage | Tree-sitter and bounded raw guest frame/proof validation | Independent live isolation and hostile-input qualification |
 | D8 capacity/cost | Native unit/integration CI | Real target request and cost envelope |
-| D9 case/API/console | OIDC, bounded API, cases, React shell, inert diffs | Browser accessibility, complete safe case projections, exports |
+| D9 case/API/console | OIDC, bounded API, scoped case evidence paging, read-only scan status, React shell, native Chromium revocation/Back/inert-rendering tests | Independent browser/accessibility review, complete safe projections and exports |
 | D10 inference | Not enabled | Consent/data broker, blind accuracy and egress assessment |
 | D11 external root | Separate security-account STOP CAS/veto contract | Monotonic floor, physical protected keys and restoration |
 | D12 database/audit | Composite FKs, FORCE RLS, role tests, outbox | External immutable archive, quotas, backup/tombstone |

@@ -123,6 +123,30 @@ worker, witness, gateway, or qualified offline guest. An entry-point/reachabilit
 review and actual native deployment evidence are required; do not label test-only
 code as operational coverage.
 
+## Additional verified code and browser work — 21 November 2026
+
+- New membership-scoped case evidence list with bounded keyset pagination,
+  same-asset joins and explicit no-store response. Native PostgreSQL tests
+  cover authorized paging, malformed tokens and denied unrelated identities.
+- An ADMIN/ANALYST-only operations view reports real PostgreSQL scan-job
+  statuses. It cannot claim clean analysis, completed validation or live
+  queue/EC2 health; the API exposes no raw guest input or lease nonce.
+- The frontend consumes both endpoints. In-memory evidence views disappear
+  on unmount/access revocation, and untrusted strings stay escaped text.
+- Added Vitest DOM regressions and native Chromium Playwright tests for
+  focus and browser-Back reauthorization and inert content. All passed on
+  `main` commit `9bd1966e42e9e23dcbe2bba2b4fadceb2eaa008b`.
+- CI now enforces Python Ruff unused-import/local-variable/undefined-name
+  checks and TypeScript unused-symbol checks. Earlier unused bindings were
+  removed without skipping signed-veto and origin validation calls.
+
+**Still not qualified:** Independent AWS accounts/roles and custodians,
+hardware-backed reviewers, native EC2 creation/isolation and janitor,
+live mTLS/witness/veto/origin, production browser/CDN bypass closure, full
+evidence retention/consent/export and independent F01–F15 oracles. A green
+local CI pipeline is not production certification. Code entry-point
+reachability and deployment configuration still need independent assessment.
+
 ## Identity session revocation hardening
 
 Browser sessions now pin the issuing identity's `membership_version`.

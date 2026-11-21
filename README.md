@@ -44,6 +44,23 @@ Read [AGENTS.md](AGENTS.md). Keep changes small, testable, and honest about gaps
 
 See [implementation status](docs/implementation-status.md).
 
+## Authenticated shadow projections
+
+When the OIDC and restricted PostgreSQL API are configured, the console can
+browse linked, case-scoped evidence metadata and read-only scan-job status.
+These routes return no executable submitted content and grant no release authority:
+
+- `GET /v1/cases/{case_id}/evidence?page_size=50&cursor=...`: case-membership
+  checked on every page; only linked same-asset SHA-256/kind/time metadata.
+- `GET /v1/operations/scans`: ADMIN/ANALYST-only, organization-scoped view of
+  up to 100 recent DB scan jobs, with explicit QUEUED, LEASED,
+  PENDING_TRUSTED_VALIDATION and UNKNOWN states.
+
+Native Chromium tests exercise session revocation on focus, browser Back
+revalidation, and escaped rendering of hostile-looking case/evidence strings.
+These tests use synthetic API fixtures; they do not demonstrate a deployed
+independent origin, EC2 isolation or protected production readiness.
+
 ## OIDC browser sessions (opt-in)
 
 The default `aegentra.api:app` exposes only liveness and no authentication or asset mutations.
