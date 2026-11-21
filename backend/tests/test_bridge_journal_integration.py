@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.bridge_custody import CustodyError, DetachedInventory
 from aegentra.bridge_journal import (
-    BridgeConflict, load_attempt_custody, record_instance,
+    BridgeConflict, load_attempt_custody, load_reserved_launch, record_instance,
     record_volumes, reserve_attempt, record_verified_detach,
 )
 from aegentra.bridge_disposal import (
@@ -89,6 +89,16 @@ async def exercise() -> None:
             with pytest.raises(BridgeConflict, match="AMI"):
                 await reserve_attempt(s, **{**kwargs, "ami_id": "ami-unqualified"})
             await reserve_attempt(s, **kwargs)
+            reserved = await load_reserved_launch(
+                s, org_id=org, job_id=job, generation=1, now=now,
+            )
+            assert reserved.ami_id == kwargs["ami_id"]
+            assert reserved.account_id == kwargs["account_id"]
+            with pytest.raises(BridgeConflict, match="live"):
+                await load_reserved_launch(
+                    s, org_id=org, job_id=job, generation=1,
+                    now=now + timedelta(minutes=2),
+                )
         async with organization_session(factory, org) as s:
             with pytest.raises(BridgeConflict, match="already"):
                 await reserve_attempt(s, **kwargs)
@@ -99,6 +109,10 @@ async def exercise() -> None:
             await record_instance(
                 s, **pinned, instance_id="i-00000000000000001", now=now,
             )
+            with pytest.raises(BridgeConflict, match="reserved"):
+                await load_reserved_launch(
+                    s, org_id=org, job_id=job, generation=1, now=now,
+                )
         # The bridge role can update state, but must never rewrite pinned
         # AMI, account, toolchain or other physical identities after reserve.
         with pytest.raises(DBAPIError, match="guest physical pin immutable"):
