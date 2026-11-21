@@ -22,3 +22,7 @@ jobs:
         run: npm run build
       - name: Test scoped console rendering
         run: npm run test
+      - name: Install native Chromium and system libraries (no containers)
+        run: npx playwright install --with-deps chromium
+      - name: Test browser revocation and inert evidence
+        run: npm run test:e2e
