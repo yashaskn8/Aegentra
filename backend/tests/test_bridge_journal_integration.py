@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.bridge_custody import CustodyError, DetachedInventory
 from aegentra.bridge_journal import (
-    BridgeConflict, record_instance, record_volumes, reserve_attempt,
-    record_verified_detach,
+    BridgeConflict, load_attempt_custody, record_instance,
+    record_volumes, reserve_attempt, record_verified_detach,
 )
 from aegentra.bridge_disposal import (
     DeletedInventory, DisposalRejected, begin_guest_disposal,
@@ -113,6 +113,12 @@ async def exercise() -> None:
                     GuestAttempt.org_id == org, GuestAttempt.job_id == job,
                     GuestAttempt.generation == 1,
                 ).values(state="DISPOSED"))
+        async with organization_session(factory, org) as s:
+            expected = await load_attempt_custody(
+                s, org_id=org, job_id=job, generation=1,
+            )
+            assert expected.ami_id == kwargs["ami_id"]
+            assert expected.instance_id == "i-00000000000000001"
         async with organization_session(factory, other) as s:
             assert (await s.scalars(select(GuestAttempt))).all() == []
         app_sessions = async_sessionmaker(app)

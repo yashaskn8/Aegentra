@@ -137,6 +137,53 @@ async def record_instance(
     )
 
 
+async def load_attempt_custody(
+    session: AsyncSession, *, org_id: UUID, job_id: UUID, generation: int,
+) -> AttemptCustody:
+    """Read persisted physical identities before making AWS calls.
+
+    Caller must finish this RLS-scoped DB transaction before the two read-only
+    cloud inventory passes. The state and identity are rechecked on write.
+    """
+    attempt = await session.scalar(
+        select(GuestAttempt).where(
+            GuestAttempt.org_id == org_id, GuestAttempt.job_id == job_id,
+            GuestAttempt.generation == generation,
+        )
+    )
+    if attempt is None or attempt.state != "INSTANCE_RECORDED":
+        raise BridgeConflict("physical attempt is not eligible for detach")
+    return await _expected_custody(session, attempt)
+
+
+async def _expected_custody(
+    session: AsyncSession, attempt: GuestAttempt,
+) -> AttemptCustody:
+    resources = (await session.scalars(
+        select(GuestResource).where(
+            GuestResource.org_id == attempt.org_id,
+            GuestResource.job_id == attempt.job_id,
+            GuestResource.generation == attempt.generation,
+        )
+    )).all()
+    names = {item.kind: item.resource_id for item in resources}
+    if (
+        len(resources) != 3
+        or set(names) != {"INPUT_EBS", "OUTPUT_EBS", "INSTANCE"}
+    ):
+        raise BridgeConflict("incomplete physical inventory")
+    if attempt.ami_id is None:
+        raise BridgeConflict("legacy physical attempt has no pinned AMI")
+    return AttemptCustody(
+        job_id=attempt.job_id, generation=attempt.generation,
+        account_id=attempt.account_id, availability_zone=attempt.availability_zone,
+        instance_id=names["INSTANCE"], ami_id=attempt.ami_id,
+        subnet_id=attempt.subnet_id, security_group_id=attempt.security_group_id,
+        input_volume_id=names["INPUT_EBS"], output_volume_id=names["OUTPUT_EBS"],
+        kms_key_arn=attempt.kms_key_arn,
+    )
+
+
 async def record_verified_detach(
     session: AsyncSession, *, org_id: UUID, job_id: UUID, actor_id: UUID,
     generation: int, now: datetime,
@@ -145,27 +192,7 @@ async def record_verified_detach(
     attempt = await _locked(session, org_id, job_id, generation)
     if attempt.state != "INSTANCE_RECORDED":
         raise BridgeConflict("physical attempt not ready for detach verification")
-    resources = (await session.scalars(
-        select(GuestResource).where(
-            GuestResource.org_id == org_id, GuestResource.job_id == job_id,
-            GuestResource.generation == generation,
-        )
-    )).all()
-    names = {r.kind: r.resource_id for r in resources}
-    if set(names) != {"INPUT_EBS", "OUTPUT_EBS", "INSTANCE"}:
-        raise BridgeConflict("incomplete physical inventory")
-    if attempt.ami_id is None:
-        raise BridgeConflict("legacy physical attempt has no pinned AMI")
-    expected = AttemptCustody(
-        job_id=job_id, generation=generation, account_id=attempt.account_id,
-        availability_zone=attempt.availability_zone,
-        instance_id=names["INSTANCE"], ami_id=attempt.ami_id,
-        subnet_id=attempt.subnet_id,
-        security_group_id=attempt.security_group_id,
-        input_volume_id=names["INPUT_EBS"],
-        output_volume_id=names["OUTPUT_EBS"],
-        kms_key_arn=attempt.kms_key_arn,
-    )
+    expected = await _expected_custody(session, attempt)
     verify_two_pass_cleanup(
         expected=expected, first=first, second=second, now=now,
     )
