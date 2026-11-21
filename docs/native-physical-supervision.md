@@ -60,13 +60,23 @@ REQUESTED after the exact AWS response. **REQUESTED is not TERMINATED.**
 The separate native detach worker must later observe two fresh,
 time-separated terminated/detached inventories before DETACHED_VERIFIED.
 
+## Native 30-second watchdog library
+
+The [default-disabled deadline supervisor](native-deadline-supervisor.md)
+now performs bounded 30-second PostgreSQL lease renewals, detects the
+8-minute attempt deadline or result handoff, and delegates exactly one
+journal-first termination request. It is **not deployed** as a service,
+does not grant raw output readback and does not guarantee a stop if its
+host fails.
+
 ## Critical qualification gates
 
 The independent custodian must still certify a signed AMI/toolchain,
 separate AWS accounts and IAM principals, real physical network/link-local
 and no-IMDS reachability, input framing, guest source independence,
-correct guest-visible block devices, 8-minute attempt timeout and 30-second
-lease renewal, host resource quotas, cancellation/crash recovery,
+correct guest-visible block devices, external enforcement of the
+8-minute attempt timeout and 30-second lease renewal under host failure,
+host resource quotas, cancellation/crash recovery,
 authoritative termination, raw output readback, deletion and two-pass
 disposal. The adapter does **not** implement a 24/7 deadline scheduler,
 device initialization, a terminated-state waiter, or janitor recovery.

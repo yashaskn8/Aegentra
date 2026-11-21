@@ -68,6 +68,13 @@ inventory remains required. See
 [physical-operation supervision](docs/native-physical-supervision.md).
 No native guest is automatically launched or terminated.
 
+A separate **default-disabled** native scan watchdog
+(`aegentra.native_deadline_supervisor`) runs transaction-scoped 30-second
+lease checks, never extends the 8-minute attempt deadline, and requests
+termination through the previously journaled adapter when it must stop.
+It is not a deployed/supervised daemon and cannot prove physical shutdown.
+See [native deadline supervision](docs/native-deadline-supervisor.md).
+
 ## Authenticated shadow projections
 
 When the OIDC and restricted PostgreSQL API are configured, the console can

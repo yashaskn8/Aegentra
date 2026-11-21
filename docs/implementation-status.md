@@ -123,6 +123,28 @@ worker, witness, gateway, or qualified offline guest. An entry-point/reachabilit
 review and actual native deployment evidence are required; do not label test-only
 code as operational coverage.
 
+## Native fixed-deadline scan watchdog — 21 November 2026
+
+- `aegentra.guest_physical_operations.heartbeat_physical_attempt`
+  now performs a transaction-scoped, nonce- and generation-bound lease check
+  every 30 seconds, with an 8-minute attempt cap and 90-second lease window.
+  Terminal or ambiguous operations cannot be renewed into trust.
+- `aegentra.native_deadline_supervisor.supervise_native_attempt` adds
+  a **default-disabled** bounded native loop. It stops renewals for expired,
+  completed, revoked or quarantined attempts, delegates a single journaled
+  termination request, and refuses to retry unknown AWS operations.
+- Unit and restricted-role PostgreSQL integration tests cover heartbeat
+  renewal, forged nonces, changed states, timeout escalation, clock drift,
+  cancellation and missing/uncertain termination receipts. The loop does
+  not hold PostgreSQL transactions while sleeping or making AWS calls.
+- [Watchdog runbook](native-deadline-supervisor.md) documents the operating
+  boundaries and independent qualification still required.
+
+**Still missing:** independently deployed and supervised native service,
+physical host/clock assurance, crash and DB-outage stop recovery, live AWS
+isolation/AMI provenance, guest-visible volume/device and raw output
+qualification. Production remains NO-GO.
+
 ## Native EBS attachment and termination supervision contracts — 21 November 2026
 
 - Migration `0022_guest_physical_operations` introduces a bridge-only,

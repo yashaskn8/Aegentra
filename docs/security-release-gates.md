@@ -21,7 +21,7 @@ or customer TLS behavior are configured correctly.
 | D11 external root | Separate security-account STOP CAS/veto contract | Monotonic floor, physical protected keys and restoration |
 | D12 database/audit | Composite FKs, FORCE RLS, role tests, outbox | External immutable archive, quotas, backup/tombstone |
 | D13 freeze/containment | STOP/HOLD, observations, signed gateway ACK/drain oracle | Real incident identities, all gateway ACKs and drained live responses |
-| D14 jobs/events | Fenced leases and shadow preflight, creation/physical one-way journals, default-disabled native create/attach/terminate-request adapters, exact EBS inventory, two-pass detach, outbox and janitor intents | Qualified live provisioning, guest-visible devices, continuous deadline supervision, independent AWS termination/disposal evidence, retries and quotas |
+| D14 jobs/events | Fenced leases, default-disabled bounded 30-second watchdog/8-minute attempt decision loop, creation/physical one-way journals, native create/attach/terminate-request adapters, exact EBS inventory, two-pass detach, outbox and janitor intents | Independently deployed watchdog/crash recovery, qualified live provisioning and guest devices, actual deadline/termination/disposal drills, retries and quotas |
 | D15 evidence efficacy | Static facts only, explicit unknown/incomplete states | Independent accuracy datasets and proof provenance |
 
 **Non-negotiable gating:** production ENFORCED requires all relevant P0
