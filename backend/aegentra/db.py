@@ -411,6 +411,48 @@ class GuestResource(Base):
     )
 
 
+class GuestPhysicalOperation(Base):
+    """Bridge-owned, one-way EBS attach or instance termination intent."""
+
+    __tablename__ = "guest_physical_operations"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    job_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    generation: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    instance_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    volume_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "job_id", "generation"],
+            ["guest_attempts.org_id", "guest_attempts.job_id", "guest_attempts.generation"],
+        ),
+        CheckConstraint(
+            "kind IN ('ATTACH_INPUT','ATTACH_OUTPUT','TERMINATE')",
+            name="guest_physical_kind",
+        ),
+        CheckConstraint(
+            "state IN ('PREPARED','VERIFIED','REQUESTED','UNKNOWN')",
+            name="guest_physical_state",
+        ),
+        CheckConstraint(
+            "(kind = 'TERMINATE' AND volume_id IS NULL) OR "
+            "(kind IN ('ATTACH_INPUT','ATTACH_OUTPUT') AND volume_id IS NOT NULL)",
+            name="guest_physical_volume_scope",
+        ),
+        CheckConstraint(
+            "(state = 'VERIFIED' AND kind <> 'TERMINATE') OR "
+            "(state = 'REQUESTED' AND kind = 'TERMINATE') OR "
+            "state IN ('PREPARED','UNKNOWN')",
+            name="guest_physical_outcome_kind",
+        ),
+    )
+
+
 class GuestCreateIntent(Base):
     """Bridge-owned one-way AWS creation intent, durably committed before IO."""
 
