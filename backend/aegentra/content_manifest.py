@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from typing import Literal
 
 import rfc8785
@@ -40,9 +41,19 @@ def strict_json(data: bytes, *, max_bytes: int = MAX_TOTAL_BYTES) -> object:
                 ManifestError("nonstandard JSON constant")
             ),
             object_pairs_hook=_reject_duplicate_keys,
+            parse_float=_finite_float,
         )
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except ManifestError:
+        raise
+    except (ValueError, RecursionError) as exc:
         raise ManifestError("invalid JSON") from exc
+
+
+def _finite_float(raw: str) -> float:
+    value = float(raw)
+    if not math.isfinite(value):
+        raise ManifestError("non-finite JSON number")
+    return value
 
 
 def _check_json_depth(data: bytes, *, max_depth: int = 128) -> None:

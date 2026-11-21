@@ -92,6 +92,14 @@ def test_overdeep_package_lock_remains_incomplete() -> None:
     assert "JSON exceeds nesting depth" in result.gaps
 
 
+def test_numeric_json_failures_are_reported_as_invalid_evidence() -> None:
+    with pytest.raises(ManifestError, match="non-finite"):
+        strict_json(b'{"value":1e10000}')
+    with pytest.raises(ManifestError, match="invalid JSON"):
+        strict_json(b'{"value":' + b"9" * 5_000 + b"}")
+    assert strict_json(b'{"value":1.25}') == {"value": 1.25}
+
+
 def test_parse_manifest_json_rejects_unknown_or_missing_parts() -> None:
     assert parse_manifest_json(json.dumps(manifest(["a.js"])).encode()).parts[0].path == "a.js"
     with pytest.raises(ValidationError):
