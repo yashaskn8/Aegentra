@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import CaseEvidencePanel from "./CaseEvidencePanel";
 
 type Asset = { id: string; slug: string };
 type User = { role: string; csrf_token: string };
@@ -19,6 +20,7 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
   const [busy, setBusy] = useState(false);
   const [transitioning, setTransitioning] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -155,6 +157,13 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
               <span>{item.title}</span>
               <small>{item.status} · revision {item.revision}</small>
             </div>
+            <div className="case-actions">
+              <button type="button" aria-expanded={selectedCaseId === item.id}
+                aria-controls={`evidence-${item.id}`}
+                onClick={() => setSelectedCaseId((selected) => selected === item.id ? null : item.id)}>
+                {selectedCaseId === item.id ? "Hide evidence" : "View evidence"}
+              </button>
+            </div>
             {(user.role === "ANALYST" || user.role === "ADMIN") && (
               <div className="case-actions">
                 {item.status === "OPEN" && (
@@ -169,6 +178,11 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
                     {transitioning === item.id ? "Recording…" : "Request containment"}
                   </button>
                 )}
+              </div>
+            )}
+            {selectedCaseId === item.id && (
+              <div id={`evidence-${item.id}`} className="case-evidence-section">
+                <CaseEvidencePanel caseId={item.id} onAccessLost={onAccessLost} />
               </div>
             )}
           </li>

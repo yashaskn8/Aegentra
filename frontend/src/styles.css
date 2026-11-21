@@ -68,3 +68,25 @@ footer { padding: 25px 0 44px; border-top: 1px solid #22343b; color: #759397; fo
 @media (max-width: 740px) {
   .cases-panel .asset-list li { align-items: flex-start; flex-direction: column; }
 }
+
+
+/* Case-scoped metadata stays inert: never embed or render uploaded content. */
+.case-evidence-section {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-top: 1px solid var(--line, #344051);
+}
+.case-evidence-list {
+  list-style: none;
+  margin: 0.65rem 0;
+  padding: 0;
+}
+.case-evidence-list > li {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line, #344051);
+}
+.evidence-digest {
+  overflow-wrap: anywhere;
+  margin: 0.3rem 0;
+}
