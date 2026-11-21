@@ -32,12 +32,12 @@ test("external session revocation clears old asset data on focus", async ({ page
     route.fulfill({ json: { items: [], truncated: false } }),
   );
   await page.goto("/");
-  await expect(page.getByText("private-asset")).toBeVisible();
+  await expect(page.locator("ul.asset-list > li > span").filter({ hasText: "private-asset" })).toBeVisible();
 
   sessionStatus = 401;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.getByText(/Sign in with an enrolled identity provider/)).toBeVisible();
-  await expect(page.getByText("private-asset")).toHaveCount(0);
+  await expect(page.locator("ul.asset-list > li > span").filter({ hasText: "private-asset" })).toHaveCount(0);
 });
 
 test("browser Back revalidates session instead of restoring scoped evidence", async ({ page }) => {
@@ -47,12 +47,12 @@ test("browser Back revalidates session instead of restoring scoped evidence", as
     route.fulfill({ json: { items: [], truncated: false } }),
   );
   await page.goto("/");
-  await expect(page.getByText("private-asset")).toBeVisible();
+  await expect(page.locator("ul.asset-list > li > span").filter({ hasText: "private-asset" })).toBeVisible();
   await page.goto("about:blank");
   sessionStatus = 401;
   await page.goBack();
   await expect(page.getByText(/Sign in with an enrolled identity provider/)).toBeVisible();
-  await expect(page.getByText("private-asset")).toHaveCount(0);
+  await expect(page.locator("ul.asset-list > li > span").filter({ hasText: "private-asset" })).toHaveCount(0);
 });
 
 test("injected-looking case titles and evidence remain plain text", async ({ page }) => {
