@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from aegentra.fixed_delivery import FixedStaticProfile
 from aegentra.gateway_signatures import (
-    HeadSnapshot, SignedHead, verify_head,
+    SignedHead, verify_head,
 )
 from aegentra.observation_crypto import (
     ObservationBody, SignedObservation, observation_message,

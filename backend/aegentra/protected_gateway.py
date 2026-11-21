@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import re
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -23,7 +22,7 @@ from pydantic import ValidationError
 from aegentra.content_manifest import ManifestError, strict_json
 from aegentra.fixed_delivery import FixedStaticProfile, UnsupportedDelivery
 from aegentra.gateway_signatures import (
-    AdmissionDenied, HeadSnapshot, SignedHead, SignedVeto,
+    AdmissionDenied, SignedHead, SignedVeto,
     verify_head, verify_veto,
 )
 from aegentra.witness_crypto import WitnessBody, WitnessArchiveRef

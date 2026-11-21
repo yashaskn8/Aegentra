@@ -7,9 +7,8 @@ enforce exclusive routing and live TLS termination independently.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 
-from aegentra.gateway_signatures import AdmissionDenied
 from aegentra.protected_gateway import ProtectedAdmission
 
 
