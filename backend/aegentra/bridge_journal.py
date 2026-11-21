@@ -9,7 +9,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import re
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,6 +30,74 @@ class BridgeConflict(ValueError):
 _VOLUME = re.compile(r"vol-[0-9a-f]{8,17}\Z")
 _INSTANCE = re.compile(r"i-[0-9a-f]{8,17}\Z")
 _AMI = re.compile(r"ami-[0-9a-f]{8,17}\Z")
+
+
+@dataclass(frozen=True)
+class LaunchReservation:
+    """DB-fenced planning pins; this record is not permission to launch."""
+
+    org_id: UUID
+    job_id: UUID
+    generation: int
+    ami_id: str
+    account_id: str
+    availability_zone: str
+    subnet_id: str
+    security_group_id: str
+    kms_key_arn: str
+
+
+async def load_reserved_launch(
+    session: AsyncSession, *, org_id: UUID, job_id: UUID,
+    generation: int, now: datetime,
+) -> LaunchReservation:
+    """Check a live lease and a reserved, resource-free physical attempt."""
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise BridgeConflict("trusted launch-planning time unavailable")
+    job = await session.scalar(
+        select(ScanJob).where(
+            ScanJob.org_id == org_id, ScanJob.id == job_id,
+        )
+    )
+    attempt = await session.scalar(
+        select(GuestAttempt).where(
+            GuestAttempt.org_id == org_id, GuestAttempt.job_id == job_id,
+            GuestAttempt.generation == generation,
+        )
+    )
+    if (
+        job is None or attempt is None
+        or job.status != "LEASED"
+        or job.attempt_generation != generation
+        or job.lease_nonce is None
+        or job.lease_expires is None
+        or job.attempt_deadline is None
+        or now + timedelta(seconds=15) >= job.lease_expires
+        or now + timedelta(seconds=15) >= job.attempt_deadline
+        or attempt.state != "RESERVED"
+        or attempt.ami_id is None
+        or not hmac.compare_digest(
+            attempt.nonce_sha256,
+            hashlib.sha256(job.lease_nonce.encode("ascii")).digest(),
+        )
+    ):
+        raise BridgeConflict("launch planning requires a live, reserved attempt")
+    recorded_resource = await session.scalar(
+        select(GuestResource.resource_id).where(
+            GuestResource.org_id == org_id, GuestResource.job_id == job_id,
+            GuestResource.generation == generation,
+        ).limit(1)
+    )
+    if recorded_resource is not None:
+        raise BridgeConflict("launch planning cannot reuse physical resources")
+    return LaunchReservation(
+        org_id=org_id, job_id=job_id, generation=generation,
+        ami_id=attempt.ami_id, account_id=attempt.account_id,
+        availability_zone=attempt.availability_zone,
+        subnet_id=attempt.subnet_id,
+        security_group_id=attempt.security_group_id,
+        kms_key_arn=attempt.kms_key_arn,
+    )
 
 
 async def reserve_attempt(
