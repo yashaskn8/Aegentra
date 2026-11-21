@@ -92,24 +92,13 @@ async def exercise() -> None:
                 raw_result=result, actor_id=actor, now=now,
             )
             assert lead.disposition == "ADVISORY_PENDING_INDEPENDENT_REVIEW"
-        # An older attempt without a pinned AMI is not eligible even if
-        # it already has a synthetic detached state and advisory receipt.
-        async with admin.begin() as s:
-            await s.execute(update(GuestAttempt).where(
-                GuestAttempt.org_id == org, GuestAttempt.job_id == job,
-                GuestAttempt.generation == 3,
-            ).values(ami_id=None))
-        async with organization_session(factory, org) as s:
-            with pytest.raises(ReceiptConflict, match="incomplete physical"):
-                await record_validated_receipt(
-                    s, expected=expected, original_source=source,
-                    raw_result=result, actor_id=actor, now=now,
-                )
-        async with admin.begin() as s:
-            await s.execute(update(GuestAttempt).where(
-                GuestAttempt.org_id == org, GuestAttempt.job_id == job,
-                GuestAttempt.generation == 3,
-            ).values(ami_id="ami-00000000000000001"))
+        # A physical AMI pin is immutable, even to a database admin.
+        with pytest.raises(DBAPIError, match="guest physical pin immutable"):
+            async with admin.begin() as s:
+                await s.execute(update(GuestAttempt).where(
+                    GuestAttempt.org_id == org, GuestAttempt.job_id == job,
+                    GuestAttempt.generation == 3,
+                ).values(ami_id=None))
         async with organization_session(factory, org) as s:
             same = await record_validated_receipt(
                 s, expected=expected, original_source=source,

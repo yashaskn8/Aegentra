@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -99,6 +99,20 @@ async def exercise() -> None:
             await record_instance(
                 s, **pinned, instance_id="i-00000000000000001", now=now,
             )
+        # The bridge role can update state, but must never rewrite pinned
+        # AMI, account, toolchain or other physical identities after reserve.
+        with pytest.raises(DBAPIError, match="guest physical pin immutable"):
+            async with organization_session(factory, org) as s:
+                await s.execute(update(GuestAttempt).where(
+                    GuestAttempt.org_id == org, GuestAttempt.job_id == job,
+                    GuestAttempt.generation == 1,
+                ).values(ami_id="ami-00000000000000002"))
+        with pytest.raises(DBAPIError, match="guest custody state transition"):
+            async with organization_session(factory, org) as s:
+                await s.execute(update(GuestAttempt).where(
+                    GuestAttempt.org_id == org, GuestAttempt.job_id == job,
+                    GuestAttempt.generation == 1,
+                ).values(state="DISPOSED"))
         async with organization_session(factory, other) as s:
             assert (await s.scalars(select(GuestAttempt))).all() == []
         app_sessions = async_sessionmaker(app)
@@ -163,15 +177,21 @@ async def exercise() -> None:
                 coverage="VERIFIED", finding_count=0,
                 created_at=now,
             ))
-        # The raw volumes may not be deleted before the delete intent
-        # and advisory receipt are durably committed.
+        # Custody timestamps must never move backwards after detach.
+        # The raw volumes may not be deleted before a durable delete intent
+        # and advisory receipt are committed.
+        with pytest.raises(DBAPIError, match="guest custody clock"):
+            async with organization_session(factory, org) as s:
+                await begin_guest_disposal(
+                    s, **pinned, now=now,
+                )
         async with organization_session(factory, org) as s:
             assert await begin_guest_disposal(
-                s, **pinned, now=now,
+                s, **pinned, now=now + timedelta(seconds=65),
             ) == "DELETE_REQUESTED"
         async with organization_session(factory, org) as s:
             assert await begin_guest_disposal(
-                s, **pinned, now=now,
+                s, **pinned, now=now + timedelta(seconds=65),
             ) == "DELETE_REQUESTED"
         first = DeletedInventory(
             account_id=kwargs["account_id"],
