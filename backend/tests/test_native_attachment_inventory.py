@@ -7,6 +7,7 @@ import pytest
 from aegentra.bridge_custody import AttemptCustody, CustodyError
 from aegentra.native_attachment_inventory import (
     LiveInventory, collect_live_inventory, verify_attachment_count,
+    verify_termination_inventory,
 )
 
 
@@ -137,3 +138,22 @@ def test_stale_snapshots_rejected():
     )
     with pytest.raises(CustodyError):
         verify_attachment_count(expected=expected, observed=stale, attached=0)
+
+
+def test_termination_requires_exact_attachment_ownership():
+    expected, ec2, sts = fixture()
+    set_attached(ec2, expected, 2)
+    observed = collect_live_inventory(ec2=ec2, sts=sts, expected=expected)
+    verify_termination_inventory(expected=expected, observed=observed)
+    ec2.volumes[1]["Attachments"][0]["InstanceId"] = "i-00000000000000002"
+    observed = collect_live_inventory(ec2=ec2, sts=sts, expected=expected)
+    with pytest.raises(CustodyError):
+        verify_termination_inventory(expected=expected, observed=observed)
+
+
+def test_termination_allows_exact_partial_attachment_for_failed_attempt_cleanup():
+    expected, ec2, sts = fixture()
+    set_attached(ec2, expected, 1)
+    observed = collect_live_inventory(ec2=ec2, sts=sts, expected=expected)
+    verify_termination_inventory(expected=expected, observed=observed)
+    assert observed.instance["InstanceId"] == expected.instance_id
