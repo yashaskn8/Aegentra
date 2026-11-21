@@ -25,6 +25,7 @@ def fixture():
         job_id=job, generation=2, account_id="123456789012",
         availability_zone="us-east-1a",
         instance_id="i-00000000000000001",
+        ami_id="ami-00000000000000001",
         subnet_id="subnet-closed", security_group_id="sg-deny",
         input_volume_id="vol-00000000000000001",
         output_volume_id="vol-00000000000000002",
@@ -36,6 +37,7 @@ def fixture():
     ]
     instance = {
         "InstanceId": expected.instance_id,
+        "ImageId": expected.ami_id,
         "State": {"Name": "terminated"},
         "SubnetId": expected.subnet_id,
         "Placement": {"AvailabilityZone": expected.availability_zone},

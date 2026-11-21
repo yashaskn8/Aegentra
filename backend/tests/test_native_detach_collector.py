@@ -27,6 +27,7 @@ class EC2:
         ]
         self.instance = {
             "InstanceId": expected.instance_id,
+            "ImageId": expected.ami_id,
             "State": {"Name": "terminated"},
             "SubnetId": expected.subnet_id,
             "Placement": {"AvailabilityZone": expected.availability_zone},
@@ -68,6 +69,7 @@ def setup():
         job_id=uuid4(), generation=2, account_id="123456789012",
         availability_zone="us-east-1a",
         instance_id="i-00000000000000001",
+        ami_id="ami-00000000000000001",
         subnet_id="subnet-deny", security_group_id="sg-deny",
         input_volume_id="vol-00000000000000001",
         output_volume_id="vol-00000000000000002",
@@ -104,7 +106,7 @@ def test_rejects_wrong_account_before_any_ec2_call():
     "running", "attached", "unexpected_volume", "duplicate_volumes",
     "instance_page", "volume_page", "missing_instance", "missing_volume",
     "unauthorized_instance", "unauthorized_volume", "wrong_tag",
-    "public_ip", "profile", "metadata",
+    "public_ip", "profile", "metadata", "wrong_ami",
 ])
 def test_tampered_or_unavailable_inventory_never_produces_custody(tamper):
     expected, ec2, sts = setup()
@@ -134,6 +136,8 @@ def test_tampered_or_unavailable_inventory_never_produces_custody(tamper):
         ec2.instance["PublicIpAddress"] = "192.0.2.1"
     elif tamper == "profile":
         ec2.instance["IamInstanceProfile"] = {"Arn": "unauthorized"}
+    elif tamper == "wrong_ami":
+        ec2.instance["ImageId"] = "ami-00000000000000009"
     else:
         ec2.instance["MetadataOptions"]["HttpEndpoint"] = "enabled"
     with pytest.raises(CustodyError):

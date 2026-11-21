@@ -14,6 +14,7 @@ def fixture():
     record = AttemptCustody(
         job_id=uuid4(), generation=3, account_id="123456789012",
         availability_zone="us-east-1a", instance_id="i-0123",
+        ami_id="ami-00000000000000001",
         subnet_id="subnet-123", security_group_id="sg-123",
         input_volume_id="vol-111", output_volume_id="vol-222",
         kms_key_arn="arn:aws:kms:us-east-1:123456789012:key/example",
@@ -24,6 +25,7 @@ def fixture():
     ]
     instance = {
         "InstanceId": record.instance_id,
+        "ImageId": record.ami_id,
         "State": {"Name": "terminated"},
         "SubnetId": record.subnet_id,
         "Placement": {"AvailabilityZone": record.availability_zone},
@@ -60,7 +62,7 @@ def test_detached_native_attempt_is_structurally_valid() -> None:
 
 @pytest.mark.parametrize("change", [
     "public", "profile", "metadata", "state", "az", "sg", "network",
-    "attached", "unencrypted", "kms", "tags", "volume", "account",
+    "attached", "unencrypted", "kms", "tags", "volume", "account", "ami",
 ])
 def test_bridge_fails_closed_on_physical_mismatch(change: str) -> None:
     record, instance, volumes = fixture()
@@ -89,6 +91,8 @@ def test_bridge_fails_closed_on_physical_mismatch(change: str) -> None:
         volumes[0]["Tags"] = [{"Key": "AegentraJob", "Value": "unrelated"}]
     elif change == "volume":
         volumes[0]["VolumeId"] = "vol-unexpected"
+    elif change == "ami":
+        instance["ImageId"] = "ami-unpinned"
     else:
         account = "000000000000"
     with pytest.raises(CustodyError):

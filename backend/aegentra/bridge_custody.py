@@ -7,6 +7,7 @@ raw output; live IAM, routing, IMDS and guest reachability drills remain P0.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
@@ -23,6 +24,7 @@ class AttemptCustody:
     account_id: str
     availability_zone: str
     instance_id: str
+    ami_id: str
     subnet_id: str
     security_group_id: str
     input_volume_id: str
@@ -76,8 +78,12 @@ def verify_detached_attempt(
     The bridge must fetch fresh describe_instances/describe_volumes using its
     independent, read-only inventory credentials and compare a durable record.
     """
-    if expected.generation < 1 or expected.input_volume_id == expected.output_volume_id:
-        raise CustodyError("invalid recorded physical attempt")
+    if (
+        expected.generation < 1
+        or expected.input_volume_id == expected.output_volume_id
+        or re.fullmatch(r"ami-[0-9a-f]{8,17}", expected.ami_id) is None
+    ):
+        raise CustodyError("invalid recorded physical attempt or AMI pin")
     if observed_account_id != expected.account_id:
         raise CustodyError("wrong AWS account")
     if len(instances) != 1 or len(volumes) != 2:
@@ -86,6 +92,7 @@ def verify_detached_attempt(
     _assert_pinned_tags(instance, expected)
     if (
         instance.get("InstanceId") != expected.instance_id
+        or instance.get("ImageId") != expected.ami_id
         or instance.get("State", {}).get("Name") != "terminated"
         or instance.get("SubnetId") != expected.subnet_id
         or instance.get("Placement", {}).get("AvailabilityZone") != expected.availability_zone

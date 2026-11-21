@@ -28,19 +28,22 @@ class BridgeConflict(ValueError):
 
 _VOLUME = re.compile(r"vol-[0-9a-f]{8,17}\Z")
 _INSTANCE = re.compile(r"i-[0-9a-f]{8,17}\Z")
+_AMI = re.compile(r"ami-[0-9a-f]{8,17}\Z")
 
 
 async def reserve_attempt(
     session: AsyncSession, *,
     org_id: UUID, job_id: UUID, actor_id: UUID, generation: int,
     nonce: str, input_sha256: bytes, toolchain_sha256: bytes,
-    account_id: str, availability_zone: str, subnet_id: str,
+    ami_id: str, account_id: str, availability_zone: str, subnet_id: str,
     security_group_id: str, kms_key_arn: str, now: datetime,
 ) -> None:
     if now.tzinfo is None or any(len(digest) != 32 for digest in (input_sha256, toolchain_sha256)):
         raise BridgeConflict("invalid trusted digest or timestamp")
     if not re.fullmatch(r"[0-9]{12}", account_id):
         raise BridgeConflict("invalid pinned AWS account")
+    if not _AMI.fullmatch(ami_id):
+        raise BridgeConflict("missing or invalid immutable AMI identity")
     job = await session.scalar(
         select(ScanJob).where(
             ScanJob.org_id == org_id, ScanJob.id == job_id
@@ -69,7 +72,7 @@ async def reserve_attempt(
         org_id=org_id, job_id=job_id, generation=generation,
         nonce_sha256=hashlib.sha256(nonce.encode("ascii")).digest(),
         input_sha256=input_sha256, toolchain_sha256=toolchain_sha256,
-        account_id=account_id, availability_zone=availability_zone,
+        ami_id=ami_id, account_id=account_id, availability_zone=availability_zone,
         subnet_id=subnet_id, security_group_id=security_group_id,
         kms_key_arn=kms_key_arn, state="RESERVED",
         created_at=now, updated_at=now,
@@ -151,10 +154,13 @@ async def record_verified_detach(
     names = {r.kind: r.resource_id for r in resources}
     if set(names) != {"INPUT_EBS", "OUTPUT_EBS", "INSTANCE"}:
         raise BridgeConflict("incomplete physical inventory")
+    if attempt.ami_id is None:
+        raise BridgeConflict("legacy physical attempt has no pinned AMI")
     expected = AttemptCustody(
         job_id=job_id, generation=generation, account_id=attempt.account_id,
         availability_zone=attempt.availability_zone,
-        instance_id=names["INSTANCE"], subnet_id=attempt.subnet_id,
+        instance_id=names["INSTANCE"], ami_id=attempt.ami_id,
+        subnet_id=attempt.subnet_id,
         security_group_id=attempt.security_group_id,
         input_volume_id=names["INPUT_EBS"],
         output_volume_id=names["OUTPUT_EBS"],

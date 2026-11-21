@@ -59,6 +59,7 @@ async def record_validated_receipt(
         or job.result_sha256 is None
         or not hmac.compare_digest(job.result_sha256, result_digest)
         or attempt is None or attempt.state != "DETACHED_VERIFIED"
+        or attempt.ami_id is None
         or not hmac.compare_digest(
             attempt.nonce_sha256,
             hashlib.sha256(expected.nonce.encode("ascii")).digest(),

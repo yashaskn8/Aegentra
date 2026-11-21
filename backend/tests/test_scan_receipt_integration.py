@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -79,6 +79,7 @@ async def exercise() -> None:
                 nonce_sha256=hashlib.sha256(nonce.encode()).digest(),
                 input_sha256=bytes.fromhex(expected.source_sha256),
                 toolchain_sha256=bytes.fromhex(expected.toolchain_sha256),
+                ami_id="ami-00000000000000001",
                 account_id="123456789012", availability_zone="us-east-1a",
                 subnet_id="subnet-fixture", security_group_id="sg-fixture",
                 kms_key_arn="arn:aws:kms:us-east-1:123456789012:key/test",
@@ -91,6 +92,24 @@ async def exercise() -> None:
                 raw_result=result, actor_id=actor, now=now,
             )
             assert lead.disposition == "ADVISORY_PENDING_INDEPENDENT_REVIEW"
+        # An older attempt without a pinned AMI is not eligible even if
+        # it already has a synthetic detached state and advisory receipt.
+        async with admin.begin() as s:
+            await s.execute(update(GuestAttempt).where(
+                GuestAttempt.org_id == org, GuestAttempt.job_id == job,
+                GuestAttempt.generation == 3,
+            ).values(ami_id=None))
+        async with organization_session(factory, org) as s:
+            with pytest.raises(ReceiptConflict, match="incomplete physical"):
+                await record_validated_receipt(
+                    s, expected=expected, original_source=source,
+                    raw_result=result, actor_id=actor, now=now,
+                )
+        async with admin.begin() as s:
+            await s.execute(update(GuestAttempt).where(
+                GuestAttempt.org_id == org, GuestAttempt.job_id == job,
+                GuestAttempt.generation == 3,
+            ).values(ami_id="ami-00000000000000001"))
         async with organization_session(factory, org) as s:
             same = await record_validated_receipt(
                 s, expected=expected, original_source=source,

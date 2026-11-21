@@ -51,6 +51,7 @@ async def exercise() -> None:
     kwargs = dict(
         **pinned, nonce=nonce, input_sha256=b"i" * 32,
         toolchain_sha256=b"t" * 32, account_id="123456789012",
+        ami_id="ami-00000000000000001",
         availability_zone="us-east-1a", subnet_id="subnet-offline",
         security_group_id="sg-offline",
         kms_key_arn="arn:aws:kms:us-east-1:123456789012:key/test", now=now,
@@ -85,6 +86,8 @@ async def exercise() -> None:
         async with organization_session(factory, org) as s:
             with pytest.raises(BridgeConflict, match="stale"):
                 await reserve_attempt(s, **{**kwargs, "nonce": "wrong"})
+            with pytest.raises(BridgeConflict, match="AMI"):
+                await reserve_attempt(s, **{**kwargs, "ami_id": "ami-unqualified"})
             await reserve_attempt(s, **kwargs)
         async with organization_session(factory, org) as s:
             with pytest.raises(BridgeConflict, match="already"):
@@ -108,7 +111,8 @@ async def exercise() -> None:
             {"Key": "AegentraGeneration", "Value": "1"},
         ]
         inst = {
-            "InstanceId": "i-00000000000000001", "State": {"Name": "terminated"},
+            "InstanceId": "i-00000000000000001",
+            "ImageId": kwargs["ami_id"], "State": {"Name": "terminated"},
             "SubnetId": "subnet-offline",
             "Placement": {"AvailabilityZone": "us-east-1a"},
             "MetadataOptions": {"HttpEndpoint": "disabled"},
