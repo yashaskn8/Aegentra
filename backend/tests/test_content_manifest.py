@@ -76,7 +76,7 @@ def test_json_nesting_is_bounded_before_parsing() -> None:
     with pytest.raises(ManifestError, match="nesting depth"):
         strict_json(b"[" * 129 + b"0" + b"]" * 129)
     with pytest.raises(ManifestError, match="nesting depth"):
-        parse_manifest_json(b'{"extra":' + b"[" * 128 + b"0" + b"]" * 128 + b"}')
+        parse_manifest_json(b'{"extra":' + b"[" * 128 + b"0" + b"]" * 128 + b"}")
 
     literal = {"text": "\\\"" + "[" * 200}
     assert strict_json(json.dumps(literal).encode()) == literal
