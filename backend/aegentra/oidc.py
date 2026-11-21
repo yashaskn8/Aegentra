@@ -193,7 +193,10 @@ class OidcClient:
                 response.raise_for_status()
                 if len(response.content) > 16_384:
                     raise OidcError("token response too large")
-                token = response.json().get("id_token")
+                payload = response.json()
+                if not isinstance(payload, dict):
+                    raise OidcError("invalid token response")
+                token = payload.get("id_token")
                 if not isinstance(token, str) or len(token) > 12_000:
                     raise OidcError("missing ID token")
 

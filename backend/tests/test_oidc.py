@@ -1,12 +1,14 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 
+import httpx
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from aegentra.oidc import (
-    OidcError, OidcSettings, authorization_url, csrf_for_session,
+    OidcClient, OidcError, OidcSettings, authorization_url, csrf_for_session,
     pkce_challenge, verify_id_token,
 )
 
@@ -96,3 +98,16 @@ def test_forged_or_inconsistent_id_token_is_rejected(kind: str) -> None:
 
 def test_csrf_is_session_bound() -> None:
     assert csrf_for_session(b"a" * 32, "token-a") != csrf_for_session(b"a" * 32, "token-b")
+
+@pytest.mark.parametrize("payload", [[], {"id_token": None}, {"id_token": 42}])
+def test_token_exchange_rejects_unexpected_json_shape(payload: object) -> None:
+    requests: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(str(request.url))
+        return httpx.Response(200, json=payload)
+
+    client = OidcClient(settings(), transport=httpx.MockTransport(respond))
+    with pytest.raises(OidcError):
+        asyncio.run(client.authenticate("code", "verifier", "nonce"))
+    assert requests == [settings().token_url]
