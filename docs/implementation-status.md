@@ -99,6 +99,30 @@ Native stack remains Python/FastAPI/SQLAlchemy/Alembic/PostgreSQL,
 React/TypeScript/Vite, AWS CDK/EC2/systemd. **No Docker, Compose, containers
 or Kubernetes.**
 
+## November 21 code-level hardening (not a production gate)
+
+- Untrusted manifest and package-lock JSON rejects nesting deeper than 128 before
+  Python JSON object allocation. Brackets inside quoted strings are not nesting.
+- Non-finite numeric JSON values and unbounded integer-decoder failures produce
+  controlled invalid-evidence outcomes, not uncaught parser errors.
+- The OIDC exchange rejects token responses that are JSON values other than an
+  object, without issuing a browser session.
+- The console removes asset/case views before session revalidation on focus,
+  page return or access-denial responses. It also invalidates actionable stale
+  cases on 409/412 and fences an in-flight asset mutation by session epoch.
+- Native backend unit/PostgreSQL integration, frontend TypeScript/Vite build and
+  CDK synthesis workflows passed on commit `2aff947d2ea61a73dde09cf85a83a0783e1d596b`.
+  These checks do **not** exercise live browser role changes, browser Back,
+  actual AWS isolation, or protected serving. DOM/browser adversarial tests
+  remain a D9 qualification gap.
+
+**Dead-code qualification is still open.** Tested protocol modules are not
+necessarily reachable from a deployed service. In particular, infrastructure
+prototypes and example systemd services are not permission to report a running
+worker, witness, gateway, or qualified offline guest. An entry-point/reachability
+review and actual native deployment evidence are required; do not label test-only
+code as operational coverage.
+
 ## Identity session revocation hardening
 
 Browser sessions now pin the issuing identity's `membership_version`.
