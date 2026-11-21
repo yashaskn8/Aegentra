@@ -66,6 +66,32 @@ def test_reject_duplicate_json_keys_even_in_nested_objects() -> None:
         strict_json(b'{"a":NaN}')
 
 
+def test_json_nesting_is_bounded_before_parsing() -> None:
+    valid = b"[" * 128 + b"0" + b"]" * 128
+    value = strict_json(valid)
+    for _ in range(128):
+        value = value[0]
+    assert value == 0
+
+    with pytest.raises(ManifestError, match="nesting depth"):
+        strict_json(b"[" * 129 + b"0" + b"]" * 129)
+    with pytest.raises(ManifestError, match="nesting depth"):
+        parse_manifest_json(b'{"extra":' + b"[" * 128 + b"0" + b"]" * 128 + b"}')
+
+    literal = {"text": "\\\"" + "[" * 200}
+    assert strict_json(json.dumps(literal).encode()) == literal
+
+
+def test_overdeep_package_lock_remains_incomplete() -> None:
+    payload = (
+        b'{"lockfileVersion":3,"packages":'
+        + b"[" * 129 + b"0" + b"]" * 129 + b"}"
+    )
+    result = inspect_package_lock(payload)
+    assert result.status == "INCOMPLETE"
+    assert "JSON exceeds nesting depth" in result.gaps
+
+
 def test_parse_manifest_json_rejects_unknown_or_missing_parts() -> None:
     assert parse_manifest_json(json.dumps(manifest(["a.js"])).encode()).parts[0].path == "a.js"
     with pytest.raises(ValidationError):

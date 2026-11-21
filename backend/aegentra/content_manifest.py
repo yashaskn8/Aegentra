@@ -32,6 +32,7 @@ def strict_json(data: bytes, *, max_bytes: int = MAX_TOTAL_BYTES) -> object:
     """Reject duplicate keys and non-JSON constants before schema validation."""
     if len(data) > max_bytes:
         raise ManifestError("JSON exceeds size limit")
+    _check_json_depth(data)
     try:
         return json.loads(
             data,
@@ -42,6 +43,29 @@ def strict_json(data: bytes, *, max_bytes: int = MAX_TOTAL_BYTES) -> object:
         )
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ManifestError("invalid JSON") from exc
+
+
+def _check_json_depth(data: bytes, *, max_depth: int = 128) -> None:
+    """Bound container nesting before Python's JSON decoder allocates objects."""
+    depth = 0
+    quoted = False
+    escaped = False
+    for byte in data:
+        if quoted:
+            if escaped:
+                escaped = False
+            elif byte == 92:  # Backslash may escape the following quote.
+                escaped = True
+            elif byte == 34:
+                quoted = False
+        elif byte == 34:
+            quoted = True
+        elif byte in (91, 123):  # [ {
+            depth += 1
+            if depth > max_depth:
+                raise ManifestError("JSON exceeds nesting depth")
+        elif byte in (93, 125):  # ] }
+            depth -= 1
 
 
 class ContentPart(ArtifactPart):
