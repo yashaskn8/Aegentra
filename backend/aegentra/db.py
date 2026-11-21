@@ -411,6 +411,44 @@ class GuestResource(Base):
     )
 
 
+class GuestCreateIntent(Base):
+    """Bridge-owned one-way AWS creation intent, durably committed before IO."""
+
+    __tablename__ = "guest_create_intents"
+
+    org_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    job_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    generation: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    plan_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    token_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    resource_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "job_id", "generation"],
+            ["guest_attempts.org_id", "guest_attempts.job_id", "guest_attempts.generation"],
+        ),
+        CheckConstraint(
+            "kind IN ('INPUT_EBS','OUTPUT_EBS','INSTANCE')", name="guest_create_kind",
+        ),
+        CheckConstraint("octet_length(plan_sha256) = 32", name="guest_create_plan_hash"),
+        CheckConstraint("octet_length(token_sha256) = 32", name="guest_create_token_hash"),
+        CheckConstraint(
+            "status IN ('PREPARED','RECORDED','UNKNOWN')",
+            name="guest_create_status",
+        ),
+        CheckConstraint(
+            "(status = 'RECORDED' AND resource_id IS NOT NULL) OR "
+            "(status <> 'RECORDED' AND resource_id IS NULL)",
+            name="guest_create_resource_state",
+        ),
+    )
+
+
 class ScanReceipt(Base):
     """Validator-issued advisory receipt. Not a signed release predicate."""
 
