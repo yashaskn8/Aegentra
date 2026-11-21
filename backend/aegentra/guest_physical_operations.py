@@ -70,6 +70,28 @@ async def _source(
     return job, attempt, expected, {item.kind: item for item in operations}
 
 
+async def load_operation_state(
+    session: AsyncSession, *, org_id: UUID, job_id: UUID,
+    generation: int, now: datetime,
+) -> tuple[AttemptCustody, bool]:
+    """Read exact physical pins and whether a stop is due.
+
+    An expired lease, retired generation, completed result handoff or
+    quarantined attempt requires termination even without operator stop.
+    """
+    job, attempt, expected, _ = await _source(
+        session, org_id=org_id, job_id=job_id, generation=generation, now=now,
+    )
+    due = (
+        attempt.state == "QUARANTINED"
+        or job.attempt_generation != generation
+        or job.status != "LEASED"
+        or job.lease_expires is None or now >= job.lease_expires
+        or job.attempt_deadline is None or now >= job.attempt_deadline
+    )
+    return expected, due
+
+
 async def prepare_operation(
     session: AsyncSession, *, org_id: UUID, job_id: UUID, generation: int,
     actor_id: UUID, kind: str, now: datetime,
