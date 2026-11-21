@@ -111,7 +111,7 @@ async def exercise() -> None:
                 await reserve_attempt(s, job_id=job, **reservation)
 
         await prepare(0, "INPUT_EBS", client_tokens[0], now)
-        with pytest.raises(CreationConflict, match="order|duplicated"):
+        with pytest.raises(CreationConflict, match="unresolved"):
             await prepare(0, "INPUT_EBS", client_tokens[0], now)
         with pytest.raises(CreationConflict, match="unresolved"):
             await prepare(0, "OUTPUT_EBS", client_tokens[1], now)
