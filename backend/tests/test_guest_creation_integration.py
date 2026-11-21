@@ -12,9 +12,13 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.bridge_journal import reserve_attempt
+from aegentra.guest_physical_operations import (
+    PhysicalConflict, mark_operation_unknown, prepare_operation, record_operation,
+)
 from aegentra.db import (
     Asset, AuditEntry, AuditStream, GuestAttempt, GuestCreateIntent,
-    GuestResource, Identity, Organization, OutboxEvent, ScanJob, StagingUpload,
+    GuestPhysicalOperation, GuestResource, Identity, Organization,
+    OutboxEvent, ScanJob, StagingUpload,
 )
 from aegentra.guest_creation import (
     CreationConflict, prepare_creation, quarantine_creation, record_creation,
@@ -39,8 +43,8 @@ async def exercise() -> None:
     bridge = make_engine(os.environ["AEGENTRA_TEST_BRIDGE_URL"])
     sessions = async_sessionmaker(bridge, expire_on_commit=False)
     org, other, actor, asset = (uuid4() for _ in range(4))
-    uploads = [uuid4() for _ in range(3)]
-    jobs = [uuid4() for _ in range(3)]
+    uploads = [uuid4() for _ in range(4)]
+    jobs = [uuid4() for _ in range(4)]
     now = datetime.now(timezone.utc)
     nonce = "n" * 43
     plan_sha256 = "a" * 64
@@ -151,6 +155,99 @@ async def exercise() -> None:
                 GuestResource.org_id == org, GuestResource.job_id == jobs[0],
             ))).all()) == 3
 
+        # Exact raw attachments are globally journaled and strictly ordered.
+        async with organization_session(sessions, org) as s:
+            with pytest.raises(PhysicalConflict, match="order"):
+                await prepare_operation(
+                    s, org_id=org, job_id=jobs[0], generation=1,
+                    actor_id=actor, kind="ATTACH_OUTPUT", now=now,
+                )
+            exact = await prepare_operation(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                actor_id=actor, kind="ATTACH_INPUT", now=now,
+            )
+        async with organization_session(sessions, org) as s:
+            with pytest.raises(PhysicalConflict, match="already"):
+                await prepare_operation(
+                    s, org_id=org, job_id=jobs[0], generation=1,
+                    actor_id=actor, kind="ATTACH_INPUT", now=now,
+                )
+            assert await record_operation(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                actor_id=actor, kind="ATTACH_INPUT", expected=exact, now=now,
+            ) == "VERIFIED"
+        async with organization_session(sessions, org) as s:
+            assert await prepare_operation(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                actor_id=actor, kind="ATTACH_OUTPUT", now=now,
+            ) == exact
+        async with organization_session(sessions, org) as s:
+            assert await record_operation(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                actor_id=actor, kind="ATTACH_OUTPUT", expected=exact, now=now,
+            ) == "VERIFIED"
+        async with organization_session(sessions, org) as s:
+            await prepare_operation(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                actor_id=actor, kind="TERMINATE", now=now,
+            )
+        async with organization_session(sessions, org) as s:
+            assert await record_operation(
+                s, org_id=org, job_id=jobs[0], generation=1,
+                actor_id=actor, kind="TERMINATE", expected=exact, now=now,
+            ) == "REQUESTED"
+            # AWS request acceptance is never evidence of termination.
+            assert (await s.scalar(select(GuestAttempt.state).where(
+                GuestAttempt.org_id == org, GuestAttempt.job_id == jobs[0],
+            ))) == "INSTANCE_RECORDED"
+        with pytest.raises(DBAPIError, match="outcome is terminal"):
+            async with organization_session(sessions, org) as s:
+                await s.execute(update(GuestPhysicalOperation).where(
+                    GuestPhysicalOperation.org_id == org,
+                    GuestPhysicalOperation.job_id == jobs[0],
+                    GuestPhysicalOperation.kind == "ATTACH_INPUT",
+                ).values(state="UNKNOWN"))
+
+        # A failed attachment permanently quarantines its physical attempt.
+        for kind, token, resource in (
+            ("INPUT_EBS", "1" * 64, "vol-00000000000000005"),
+            ("OUTPUT_EBS", "2" * 64, "vol-00000000000000006"),
+            ("INSTANCE", "3" * 64, "i-00000000000000004"),
+        ):
+            await prepare(3, kind, token, now)
+            assert await record(3, kind, token, resource, now) == "RECORDED"
+        async with organization_session(sessions, org) as s:
+            await prepare_operation(
+                s, org_id=org, job_id=jobs[3], generation=1,
+                actor_id=actor, kind="ATTACH_INPUT", now=now,
+            )
+        async with organization_session(sessions, org) as s:
+            await mark_operation_unknown(
+                s, org_id=org, job_id=jobs[3], generation=1,
+                actor_id=actor, kind="ATTACH_INPUT", now=now,
+            )
+            assert (await s.scalar(select(GuestAttempt.state).where(
+                GuestAttempt.org_id == org, GuestAttempt.job_id == jobs[3],
+            ))) == "QUARANTINED"
+            with pytest.raises(PhysicalConflict):
+                await prepare_operation(
+                    s, org_id=org, job_id=jobs[3], generation=1,
+                    actor_id=actor, kind="ATTACH_OUTPUT", now=now,
+                )
+        # A separately governed stop may still target the exact recorded
+        # instance after a failed attach, but cannot claim it is detached.
+        async with organization_session(sessions, org) as s:
+            quarantined = await prepare_operation(
+                s, org_id=org, job_id=jobs[3], generation=1,
+                actor_id=actor, kind="TERMINATE", now=now,
+            )
+            assert quarantined.instance_id == "i-00000000000000004"
+        async with organization_session(sessions, org) as s:
+            assert await record_operation(
+                s, org_id=org, job_id=jobs[3], generation=1,
+                actor_id=actor, kind="TERMINATE", expected=quarantined, now=now,
+            ) == "REQUESTED"
+
         # All intent identity fields are immutable, even for the bridge role.
         with pytest.raises(DBAPIError, match="creation intent immutable"):
             async with organization_session(sessions, org) as s:
@@ -208,16 +305,21 @@ async def exercise() -> None:
         # RLS protects creation intents and API credentials have no table grant.
         async with organization_session(sessions, other) as s:
             assert (await s.scalars(select(GuestCreateIntent))).all() == []
+            assert (await s.scalars(select(GuestPhysicalOperation))).all() == []
         with pytest.raises(DBAPIError, match="permission denied"):
             app_sessions = async_sessionmaker(app)
             async with organization_session(app_sessions, org) as s:
                 await s.execute(select(GuestCreateIntent))
+        with pytest.raises(DBAPIError, match="permission denied"):
+            async with organization_session(app_sessions, org) as s:
+                await s.execute(select(GuestPhysicalOperation))
     finally:
         try:
             async with admin.begin() as s:
                 for model in (
                     OutboxEvent, AuditEntry, AuditStream,
-                    GuestCreateIntent, GuestResource, GuestAttempt,
+                    GuestPhysicalOperation, GuestCreateIntent,
+                    GuestResource, GuestAttempt,
                     ScanJob, StagingUpload, Asset, Identity,
                 ):
                     await s.execute(delete(model).where(model.org_id == org))
