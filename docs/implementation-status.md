@@ -123,6 +123,35 @@ worker, witness, gateway, or qualified offline guest. An entry-point/reachabilit
 review and actual native deployment evidence are required; do not label test-only
 code as operational coverage.
 
+## Native guest custody hardening — 21 November 2026
+
+- The bridge now rejects two identical or unspaced detached inventories.
+  Two independent, timestamped EC2/EBS snapshots must be 30 seconds to
+  5 minutes apart; the second must be fresh, neither can predate the recorded
+  physical attempt, and both must match the pinned account and resource IDs.
+- A strictly read-only native EC2/ST​S collector checks the exact terminated
+  instance, two detached encrypted EBS volumes, metadata endpoint disabled,
+  no IAM profile, account, tags and KMS identity. Missing or partial AWS
+  results fail closed. No cloud mutation was made.
+- Migration 0019 pins an immutable AMI ID per newly reserved attempt.
+  Older NULL AMI records cannot be validated as trusted advisory results;
+  no legacy AMI is silently inferred. Migration 0020 adds database-level
+  physical-identity immutability, a forward-only guest state machine, and
+  monotonic custody timestamps.
+- `python -m aegentra.native_detach_worker` is a native one-shot entrypoint
+  that reads the journal, performs two read-only inventories **outside**
+  database transactions, then commits DETACHED_VERIFIED only after checks.
+  See [native detach operation requirements](native-detach-operations.md).
+- Unit and native PostgreSQL integration checks passed on commit
+  `1e71eabb474d5197419e56f5bff574d143853bde`.
+  They are fixture tests, not a deployed AWS/AMI qualification.
+
+Outstanding S2 work: qualified native EC2 launch, termination and cleanup
+supervision; physical image signing and build provenance; independent IAM,
+no-route/no-IMDS/no-DNS/no-egress drills; raw volume identity binding and
+hostile-input testing; durable external janitor operation. Production remains
+NO-GO.
+
 ## Additional verified code and browser work — 21 November 2026
 
 - New membership-scoped case evidence list with bounded keyset pagination,

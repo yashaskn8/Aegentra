@@ -13,7 +13,7 @@ or customer TLS behavior are configured correctly.
 | D3 serialization | SERIALIZABLE primary release sessions, guard/nonce/sequence uniqueness | Production writer role ownership, lock/race/ack schedule and latency tests |
 | D4 independent reviewers | Canonical subject, distinct Ed25519 signers and challenges | Hardware credential and custody enrollment, independent review clients, revocation |
 | D5 scope/profile | Exact source/header/profile and fail-closed prebuffering | Live HTML/JS origin restriction and customer response fidelity |
-| D6 cloud separation | CDK isolated guest VPC, independent-role contracts, cleanup inventory and two physical signing key definitions | Native separate-account EC2/IAM/IMDS/veto negative drills and real cleanup |
+| D6 cloud separation | CDK isolated VPC, read-only exact EC2/EBS inventory, AMI-pinned immutable journal, time-separated native detach bridge and independent key contracts | Real multi-account EC2/AMI/IAM isolation drills, verified launch/teardown and cleanup |
 | D7 parser coverage | Tree-sitter and bounded raw guest frame/proof validation | Independent live isolation and hostile-input qualification |
 | D8 capacity/cost | Native unit/integration CI | Real target request and cost envelope |
 | D9 case/API/console | OIDC, bounded API, scoped case evidence paging, read-only scan status, React shell, native Chromium revocation/Back/inert-rendering tests | Independent browser/accessibility review, complete safe projections and exports |
@@ -21,7 +21,7 @@ or customer TLS behavior are configured correctly.
 | D11 external root | Separate security-account STOP CAS/veto contract | Monotonic floor, physical protected keys and restoration |
 | D12 database/audit | Composite FKs, FORCE RLS, role tests, outbox | External immutable archive, quotas, backup/tombstone |
 | D13 freeze/containment | STOP/HOLD, observations, signed gateway ACK/drain oracle | Real incident identities, all gateway ACKs and drained live responses |
-| D14 jobs/events | Fenced scan leases, exact frames, outbox/SQS handoff, persisted deletion intents and bounded janitor requests | Live EC2/EBS lifecycle, independent disposal inventory, retries, workload quota |
+| D14 jobs/events | Fenced leases and guest frames, native two-pass detach checks, immutable journal, outbox/SQS handoff and bounded janitor intents | Deployed live EC2/EBS lifecycle, independent disposal inventory, retries and workload quotas |
 | D15 evidence efficacy | Static facts only, explicit unknown/incomplete states | Independent accuracy datasets and proof provenance |
 
 **Non-negotiable gating:** production ENFORCED requires all relevant P0
