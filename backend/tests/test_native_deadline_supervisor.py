@@ -65,12 +65,12 @@ def setup(monkeypatch, states):
     return identities, events, clock, flags
 
 
-def run(identities, clock, *, enabled=True, sleep=None, **extra):
+def run(identities, clock, *, enabled=True, sleep=None, nonce="n" * 43):
     return asyncio.run(supervisor.supervise_native_attempt(
         sessions=object(), ec2=object(), sts=object(),
         org_id=identities[0], job_id=identities[1], actor_id=identities[2],
-        generation=2, nonce="n" * 43, explicitly_enabled=enabled,
-        clock=clock, sleep=clock.sleep if sleep is None else sleep, **extra,
+        generation=2, nonce=nonce, explicitly_enabled=enabled,
+        clock=clock, sleep=clock.sleep if sleep is None else sleep,
     ))
 
 
