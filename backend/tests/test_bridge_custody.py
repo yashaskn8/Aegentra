@@ -1,11 +1,12 @@
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
 
 from aegentra.bridge_custody import (
-    AttemptCustody, CustodyError, verify_detached_attempt,
-    verify_two_pass_cleanup,
+    AttemptCustody, CustodyError, DetachedInventory,
+    verify_detached_attempt, verify_two_pass_cleanup,
 )
 
 
@@ -48,10 +49,12 @@ def test_detached_native_attempt_is_structurally_valid() -> None:
         expected=record, observed_account_id=record.account_id,
         instances=[instance], volumes=volumes,
     )
+    now = datetime.now(timezone.utc)
+    first = DetachedInventory(record.account_id, now - timedelta(seconds=40),
+                              (instance,), tuple(volumes))
+    second = replace(first, observed_at=now - timedelta(seconds=5))
     verify_two_pass_cleanup(
-        expected=record, account_id=record.account_id,
-        first_instances=[instance], first_volumes=volumes,
-        second_instances=[instance], second_volumes=volumes,
+        expected=record, first=first, second=second, now=now,
     )
 
 
@@ -99,9 +102,42 @@ def test_two_pass_detects_late_rebind() -> None:
     record, instance, volumes = fixture()
     rebound = [dict(v) for v in volumes]
     rebound[1]["Attachments"] = [{"InstanceId": "i-else"}]
+    now = datetime.now(timezone.utc)
+    first = DetachedInventory(record.account_id, now - timedelta(seconds=40),
+                              (instance,), tuple(volumes))
+    second = replace(first, observed_at=now - timedelta(seconds=5),
+                     volumes=tuple(rebound))
     with pytest.raises(CustodyError):
         verify_two_pass_cleanup(
-            expected=record, account_id=record.account_id,
-            first_instances=[instance], first_volumes=volumes,
-            second_instances=[instance], second_volumes=rebound,
+            expected=record, first=first, second=second, now=now,
+        )
+
+
+@pytest.mark.parametrize("change", [
+    "same_time", "out_of_order", "too_far", "stale", "future",
+    "wrong_account", "naive_time",
+])
+def test_two_pass_rejects_untrusted_time_and_account(change: str) -> None:
+    record, instance, volumes = fixture()
+    now = datetime(2026, 11, 21, 12, tzinfo=timezone.utc)
+    first = DetachedInventory(record.account_id, now - timedelta(seconds=40),
+                              (instance,), tuple(volumes))
+    second = replace(first, observed_at=now - timedelta(seconds=5))
+    if change == "same_time":
+        second = replace(second, observed_at=first.observed_at)
+    elif change == "out_of_order":
+        second = replace(second, observed_at=first.observed_at - timedelta(seconds=1))
+    elif change == "too_far":
+        first = replace(first, observed_at=now - timedelta(minutes=10))
+    elif change == "stale":
+        second = replace(second, observed_at=now - timedelta(minutes=2))
+    elif change == "future":
+        second = replace(second, observed_at=now + timedelta(seconds=1))
+    elif change == "wrong_account":
+        second = replace(second, account_id="000000000000")
+    else:
+        first = replace(first, observed_at=first.observed_at.replace(tzinfo=None))
+    with pytest.raises(CustodyError):
+        verify_two_pass_cleanup(
+            expected=record, first=first, second=second, now=now,
         )

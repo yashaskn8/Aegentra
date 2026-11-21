@@ -7,6 +7,7 @@ raw output; live IAM, routing, IMDS and guest reachability drills remain P0.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -27,6 +28,16 @@ class AttemptCustody:
     input_volume_id: str
     output_volume_id: str
     kms_key_arn: str
+
+
+@dataclass(frozen=True)
+class DetachedInventory:
+    """One timestamped, account-pinned read-only EC2/EBS inventory pass."""
+
+    account_id: str
+    observed_at: datetime
+    instances: tuple[dict[str, Any], ...]
+    volumes: tuple[dict[str, Any], ...]
 
 
 def _tags(resource: dict) -> dict[str, str]:
@@ -116,19 +127,29 @@ def verify_detached_attempt(
 
 
 def verify_two_pass_cleanup(
-    *,
-    expected: AttemptCustody,
-    account_id: str,
-    first_instances: list[dict[str, Any]],
-    first_volumes: list[dict[str, Any]],
-    second_instances: list[dict[str, Any]],
-    second_volumes: list[dict[str, Any]],
+    *, expected: AttemptCustody, first: DetachedInventory,
+    second: DetachedInventory, now: datetime,
 ) -> None:
-    """Require two fresh inventory passes; caller enforces separation in time."""
-    for instances, volumes in (
-        (first_instances, first_volumes), (second_instances, second_volumes)
+    """Require two fresh, time-separated inventories before trusting detach.
+
+    The independent bridge obtains each read-only snapshot separately. These
+    AWS control-plane checks are not guest network-isolation qualification.
+    """
+    timestamps = (first.observed_at, second.observed_at, now)
+    if any(tz.tzinfo is None or tz.utcoffset() is None for tz in timestamps):
+        raise CustodyError("trusted UTC-aware detach inventory clocks required")
+    start, end, checked = (t.astimezone(timezone.utc) for t in timestamps)
+    if (
+        end - start < timedelta(seconds=30)
+        or end - start > timedelta(minutes=5)
+        or end > checked
+        or checked - end > timedelta(seconds=60)
+        or first.account_id != expected.account_id
+        or second.account_id != expected.account_id
     ):
+        raise CustodyError("detached inventory passes are not fresh and separated")
+    for snapshot in (first, second):
         verify_detached_attempt(
-            expected=expected, observed_account_id=account_id,
-            instances=instances, volumes=volumes,
+            expected=expected, observed_account_id=snapshot.account_id,
+            instances=list(snapshot.instances), volumes=list(snapshot.volumes),
         )

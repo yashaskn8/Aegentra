@@ -11,6 +11,7 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from aegentra.bridge_custody import CustodyError, DetachedInventory
 from aegentra.bridge_journal import (
     BridgeConflict, record_instance, record_volumes, reserve_attempt,
     record_verified_detach,
@@ -123,11 +124,23 @@ async def exercise() -> None:
             }
             for vol in ("vol-00000000000000001", "vol-00000000000000002")
         ]
+        first_detach = DetachedInventory(
+            kwargs["account_id"], now + timedelta(seconds=30),
+            (inst,), tuple(vols),
+        )
+        second_detach = DetachedInventory(
+            kwargs["account_id"], now + timedelta(seconds=60),
+            (inst,), tuple(vols),
+        )
         async with organization_session(factory, org) as s:
+            with pytest.raises(CustodyError):
+                await record_verified_detach(
+                    s, **pinned, now=now + timedelta(seconds=65),
+                    first=first_detach, second=first_detach,
+                )
             result = await record_verified_detach(
-                s, **pinned, now=now,
-                first_instances=[inst], first_volumes=vols,
-                second_instances=[inst], second_volumes=vols,
+                s, **pinned, now=now + timedelta(seconds=65),
+                first=first_detach, second=second_detach,
             )
             assert result.job_id == job
         async with admin.connect() as s:

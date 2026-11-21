@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from aegentra.audit import record_event
 from aegentra.bridge_custody import (
-    AttemptCustody, verify_two_pass_cleanup,
+    AttemptCustody, DetachedInventory, verify_two_pass_cleanup,
 )
 from aegentra.db import GuestAttempt, GuestResource, ScanJob
 
@@ -137,8 +137,7 @@ async def record_instance(
 async def record_verified_detach(
     session: AsyncSession, *, org_id: UUID, job_id: UUID, actor_id: UUID,
     generation: int, now: datetime,
-    first_instances: list[dict], first_volumes: list[dict],
-    second_instances: list[dict], second_volumes: list[dict],
+    first: DetachedInventory, second: DetachedInventory,
 ) -> AttemptCustody:
     attempt = await _locked(session, org_id, job_id, generation)
     if attempt.state != "INSTANCE_RECORDED":
@@ -162,10 +161,10 @@ async def record_verified_detach(
         kms_key_arn=attempt.kms_key_arn,
     )
     verify_two_pass_cleanup(
-        expected=expected, account_id=attempt.account_id,
-        first_instances=first_instances, first_volumes=first_volumes,
-        second_instances=second_instances, second_volumes=second_volumes,
+        expected=expected, first=first, second=second, now=now,
     )
+    if first.observed_at < attempt.updated_at:
+        raise BridgeConflict("detach inventory predates recorded physical instance")
     attempt.state, attempt.updated_at = "DETACHED_VERIFIED", now
     await record_event(
         session, org_id=org_id, actor_id=actor_id, stream="scan",
