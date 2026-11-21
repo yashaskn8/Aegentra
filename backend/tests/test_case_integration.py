@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -15,7 +16,7 @@ from aegentra.api import create_app
 from aegentra.db import (
     Asset, AuditEntry, AuditStream, BrowserSession, CaseEvidence, CaseMembership,
     Evidence, Identity, IdempotencyRequest, InvestigationCase, LoginChallenge,
-    Organization, OutboxEvent,
+    Organization, OutboxEvent, ScanJob, StagingUpload,
 )
 from aegentra.oidc import OidcSettings
 from aegentra.persistence import make_engine
@@ -58,6 +59,7 @@ async def exercise_case_scope() -> None:
     analyst, viewer = uuid4(), uuid4()
     asset_a, asset_b, foreign_asset = uuid4(), uuid4(), uuid4()
     ev_a, ev_b, foreign_ev, ev_after_triage = (uuid4() for _ in range(4))
+    upload_id, scan_id = uuid4(), uuid4()
     settings = OidcSettings(
         issuer="https://idp.example.test/",
         authorization_url="https://idp.example.test/authorize",
@@ -92,6 +94,16 @@ async def exercise_case_scope() -> None:
                 {"id": asset_b, "org_id": org, "slug": "asset-b", "criticality": "LOW"},
                 {"id": foreign_asset, "org_id": other_org, "slug": "asset-c", "criticality": "LOW"},
             ])
+            now = datetime.now(timezone.utc)
+            await session.execute(insert(StagingUpload).values(
+                org_id=org, id=upload_id, asset_id=asset_a, issued_by=analyst,
+                content_digest=b"a" * 32, content_manifest={"schema": "synthetic"},
+                status="ISSUED", created_at=now, expires_at=now + timedelta(minutes=15),
+            ))
+            await session.execute(insert(ScanJob).values(
+                org_id=org, id=scan_id, upload_id=upload_id,
+                status="QUEUED", created_at=now, attempt_generation=0, attempts=0,
+            ))
             await session.execute(insert(Evidence), [
                 {
                     "id": ev_a, "org_id": org, "asset_id": asset_a,
@@ -146,6 +158,18 @@ async def exercise_case_scope() -> None:
             cases = await analyst_client.get("/v1/cases")
             assert cases.status_code == 200
             assert [case["id"] for case in cases.json()["items"]] == [case_id]
+
+            status_response = await analyst_client.get("/v1/operations/scans")
+            assert status_response.status_code == 200
+            assert status_response.headers["cache-control"] == "no-store"
+            assert status_response.json() == {
+                "items": [{
+                    "id": str(scan_id), "asset_id": str(asset_a),
+                    "status": "QUEUED", "attempts": 0,
+                    "created_at": now.isoformat(),
+                }],
+                "truncated": False,
+            }
 
             wrong_asset = await analyst_client.post(
                 f"/v1/cases/{case_id}/evidence",
@@ -247,6 +271,7 @@ async def exercise_case_scope() -> None:
             ) as viewer_client:
                 viewer_me = await sign_in(viewer_client, "viewer")
                 assert (await viewer_client.get("/v1/cases")).json()["items"] == []
+                assert (await viewer_client.get("/v1/operations/scans")).status_code == 403
                 assert (await viewer_client.get(f"/v1/cases/{case_id}")).status_code == 404
                 assert (await viewer_client.get(
                     f"/v1/cases/{case_id}/evidence"
@@ -278,6 +303,8 @@ async def exercise_case_scope() -> None:
                 await session.execute(delete(AuditStream).where(AuditStream.org_id == org))
                 await session.execute(delete(BrowserSession).where(BrowserSession.org_id == org))
                 await session.execute(delete(LoginChallenge))
+                await session.execute(delete(ScanJob).where(ScanJob.org_id == org))
+                await session.execute(delete(StagingUpload).where(StagingUpload.org_id == org))
                 await session.execute(delete(Evidence).where(Evidence.org_id.in_([org, other_org])))
                 await session.execute(delete(Asset).where(Asset.org_id.in_([org, other_org])))
                 await session.execute(delete(Identity).where(Identity.org_id == org))

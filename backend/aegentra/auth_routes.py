@@ -26,6 +26,7 @@ from aegentra.oidc import (
 from aegentra.incident_state import (
     IncidentConflict, IncidentUnavailable, request_incident_transition,
 )
+from aegentra.operations_projection import list_scan_status
 from aegentra.persistence import organization_session
 
 
@@ -215,6 +216,17 @@ def enable_auth(
                 ],
                 "truncated": len(items) > 100,
             }
+
+    @router.get("/operations/scans")
+    async def scan_statuses(
+        response: Response, user: Principal = Depends(principal),
+    ) -> dict:
+        if user.role not in {"ADMIN", "ANALYST"}:
+            raise HTTPException(status_code=403, detail="operations access not permitted")
+        async with organization_session(sessions, user.org_id) as session:
+            result = await list_scan_status(session, org_id=user.org_id)
+        response.headers["Cache-Control"] = "no-store"
+        return result
 
     @router.post("/cases", status_code=201)
     async def add_case(
