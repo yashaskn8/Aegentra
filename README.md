@@ -60,6 +60,14 @@ quarantines uncertain results, and records immutable physical IDs.
 It is **not** a deployed EC2 worker or an authorization for live creation.
 See [native creation operations](docs/native-creation-controller.md).
 
+The new **default-disabled** physical-operation adapter
+(`aegentra.native_physical_controller`) uses a separate immutable
+PostgreSQL journal for exact raw EBS attachments and termination requests.
+A termination ACK is not proof of detachment; the independent two-pass
+inventory remains required. See
+[physical-operation supervision](docs/native-physical-supervision.md).
+No native guest is automatically launched or terminated.
+
 ## Authenticated shadow projections
 
 When the OIDC and restricted PostgreSQL API are configured, the console can

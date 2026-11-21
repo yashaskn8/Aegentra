@@ -61,13 +61,13 @@ recorded-state rollback, while resource IDs cannot be reused globally.
 
 ## Explicitly not implemented in this stage
 
-This library **does not attach** EBS volumes, install source code, execute
-the guest, terminate instances, attest guest/network isolation, read raw
-output, delete volumes or approve releases. The next governed stage must
-verify independently collected post-create AWS inventories and permanent
-physical journal identity **before attachment**, supervise timeouts,
-execute an independent termination/reconciliation sequence and prove
-the two-pass disposal evidence. Production remains NO-GO.
+This library **does not attach** EBS volumes, install source code,
+execute the guest, terminate instances, attest guest/network isolation,
+read raw output, delete volumes or approve releases. A separate,
+default-disabled [physical operation library](native-physical-supervision.md)
+now adds journal-first attachment verification and termination requests,
+but not a deployed timeout supervisor, independently qualified isolation,
+or the external two-pass disposal evidence. Production remains NO-GO.
 
 The added native PostgreSQL and mock-EC2 tests exercise ordering,
 tenant/role isolation, failed writes, delayed AWS responses, and

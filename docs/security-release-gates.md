@@ -13,7 +13,7 @@ or customer TLS behavior are configured correctly.
 | D3 serialization | SERIALIZABLE primary release sessions, guard/nonce/sequence uniqueness | Production writer role ownership, lock/race/ack schedule and latency tests |
 | D4 independent reviewers | Canonical subject, distinct Ed25519 signers and challenges | Hardware credential and custody enrollment, independent review clients, revocation |
 | D5 scope/profile | Exact source/header/profile and fail-closed prebuffering | Live HTML/JS origin restriction and customer response fidelity |
-| D6 cloud separation | CDK isolated VPC, encrypted AMI/snapshot and network preflight, AMI-pinned immutable journal, two-pass native detach bridge and independent key contracts | Independently signed AMI provenance, live EC2 lifecycle and multi-account IAM/no-route/IMDS drills |
+| D6 cloud separation | CDK isolated VPC, pinned AMI/snapshot and read-only network preflight, physical attachment/termination custody checks, two-pass detach bridge and independent key contracts | Independently signed image provenance and real multi-account EC2/IAM, link-local, IMDS and disposal drills |
 | D7 parser coverage | Tree-sitter and bounded raw guest frame/proof validation | Independent live isolation and hostile-input qualification |
 | D8 capacity/cost | Native unit/integration CI | Real target request and cost envelope |
 | D9 case/API/console | OIDC, bounded API, scoped case evidence paging, read-only scan status, React shell, native Chromium revocation/Back/inert-rendering tests | Independent browser/accessibility review, complete safe projections and exports |
@@ -21,7 +21,7 @@ or customer TLS behavior are configured correctly.
 | D11 external root | Separate security-account STOP CAS/veto contract | Monotonic floor, physical protected keys and restoration |
 | D12 database/audit | Composite FKs, FORCE RLS, role tests, outbox | External immutable archive, quotas, backup/tombstone |
 | D13 freeze/containment | STOP/HOLD, observations, signed gateway ACK/drain oracle | Real incident identities, all gateway ACKs and drained live responses |
-| D14 jobs/events | Fenced leases, shadow read-only preflight, immutable creation-intent ledger, default-disabled native EC2/EBS create adapter, custody and two-pass detach checks, outbox/SQS handoff and janitor intents | Live authorized AWS provisioning, post-create verification, attachment, execution/timeout supervision, termination, independent disposal, retries and quotas |
+| D14 jobs/events | Fenced leases and shadow preflight, creation/physical one-way journals, default-disabled native create/attach/terminate-request adapters, exact EBS inventory, two-pass detach, outbox and janitor intents | Qualified live provisioning, guest-visible devices, continuous deadline supervision, independent AWS termination/disposal evidence, retries and quotas |
 | D15 evidence efficacy | Static facts only, explicit unknown/incomplete states | Independent accuracy datasets and proof provenance |
 
 **Non-negotiable gating:** production ENFORCED requires all relevant P0

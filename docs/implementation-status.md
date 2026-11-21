@@ -123,6 +123,32 @@ worker, witness, gateway, or qualified offline guest. An entry-point/reachabilit
 review and actual native deployment evidence are required; do not label test-only
 code as operational coverage.
 
+## Native EBS attachment and termination supervision contracts — 21 November 2026
+
+- Migration `0022_guest_physical_operations` introduces a bridge-only,
+  RLS-scoped journal for ATTACH_INPUT, ATTACH_OUTPUT and TERMINATE, with
+  immutable physical identities and terminal VERIFIED/REQUESTED/UNKNOWN
+  outcomes.
+- `aegentra.native_attachment_inventory` validates fresh STS/EC2
+  readbacks of the exact guest, encrypted pinned volumes and device order,
+  and denies foreign or untracked volume attachments.
+- `aegentra.native_physical_controller` implements **default-disabled**
+  attach and termination-request adapters. Every AWS operation requires a
+  committed intent, occurs outside PostgreSQL locks and cannot be blindly
+  retried after uncertainty. Only verified attachments advance; accepted
+  termination is REQUESTED, not detached/terminated proof.
+- PostgreSQL integration CI now actually runs the creation-intent tests
+  together with the new physical-operation journal scenarios, including
+  ordering, terminal outcomes, quarantined cleanup, tenant RLS and API-role
+  rejection. Simulated AWS tests cover failed readback, timeouts and
+  deadline/operator-stop admission.
+- See the [physical supervision runbook](native-physical-supervision.md).
+
+**Still unqualified:** independent AMI build and credentials, live guest
+network/IMDS/volume-device drills, native automatically scheduled deadline
+renewal and termination, raw input/output handling and incident janitor
+reconciliation. No production AWS lifecycle has been exercised; NO-GO.
+
 ## Durable native AWS resource creation intents — 21 November 2026
 
 - Migration `0021_guest_create_intents` adds a tenant-scoped, bridge-only
