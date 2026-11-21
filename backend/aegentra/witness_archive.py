@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import io
 from dataclasses import dataclass
 from typing import Any
 
 from aegentra.witness_crypto import (
-    WitnessArchiveRef, WitnessBody, WitnessRejected, signed_certificate_bytes,
+    WitnessArchiveRef, WitnessBody, signed_certificate_bytes,
 )
 
 MAX_WITNESS = 64 * 1024

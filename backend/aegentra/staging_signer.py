@@ -10,7 +10,6 @@ import base64
 from dataclasses import dataclass
 from typing import Protocol
 
-from aegentra.db import StagingPart
 
 
 class PresignedClient(Protocol):

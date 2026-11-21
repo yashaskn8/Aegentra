@@ -6,9 +6,8 @@ This stage never publishes and never enables ENFORCED.
 """
 from __future__ import annotations
 
-import hashlib
 import hmac
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -16,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from aegentra.audit import record_event
 from aegentra.db import (
-    ReleaseGrant, ReleasePublication, ReleaseSelection, ReleaseTarget,
+    ReleaseGrant, ReleasePublication, ReleaseSelection,
 )
 from aegentra.gateway_signatures import (
     SignedVeto, verify_veto,
@@ -25,7 +24,7 @@ from aegentra.release_state import ReleaseConflict, _locked
 from aegentra.review_crypto import ReviewSubject
 from aegentra.witness_crypto import (
     WitnessArchiveRef, WitnessBody, WitnessSelection,
-    WitnessRejected, signed_certificate_bytes, verify_witness_certificate,
+    signed_certificate_bytes, verify_witness_certificate,
 )
 
 
@@ -97,7 +96,7 @@ async def witness_committed_selection(
     if cert_body.predecessor_witness_sha256 != earlier_witness:
         raise ReleaseConflict("missing or incorrect predecessor certificate")
 
-    vetostate = verify_veto(
+    verify_veto(
         live_veto, pinned_key_der=pinned_veto_key_der, nonce=veto_nonce,
         org_id=org_id, incarnation=root.incarnation,
         minimum_root_generation=cert_body.security_root_generation,

@@ -7,7 +7,6 @@ serve it until its publication receipt is independently sealed.
 """
 from __future__ import annotations
 
-import hashlib
 import hmac
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -111,13 +110,13 @@ async def publish_witnessed_selection(
             raise ReleaseConflict("previous publication receipt not sealed")
         previous_witness_sha256 = previous.witness_sha256.hex()
 
-    veto = verify_veto(
+    verify_veto(
         security_veto, pinned_key_der=veto_public_der,
         nonce=veto_nonce, org_id=org_id,
         incarnation=root.incarnation, now=now,
         minimum_root_generation=witness.security_root_generation,
     )
-    origin = verify_origin_binding(
+    verify_origin_binding(
         binding=origin_binding, signature_der=origin_signature,
         pinned_verifier_der=origin_verifier_public_der,
         expected_key_id=origin_key_id, subject=subject,
