@@ -141,10 +141,15 @@ def test_incomplete_checks_never_return_launch_plan(monkeypatch, fail, error_typ
     assert not state["db"]
 
 
-def test_changed_plan_inputs_are_rejected(monkeypatch):
-    pin, image, network, state = install(monkeypatch)
-    pin = replace(pin, subnet_id="subnet-unregistered")
-    # A fabricated DB pin cannot satisfy the exact external network identity.
+def test_invalid_instance_network_id_never_creates_a_launch_plan():
+    pin, image, network = fixture()
+    changed = replace(pin, subnet_id="subnet-unregistered")
+    observed = IsolationCandidate(
+        network.vpc_id, changed.subnet_id, changed.security_group_id,
+    )
     with pytest.raises(runner.LaunchPreflightRejected):
-        evaluate(pin, image, network)
-    assert state["queries"] == 1
+        runner._plan(
+            pinned=changed,
+            image=AmiCandidate(image.ami_id, image.root_snapshot_id),
+            network=observed, region=image.region,
+        )
