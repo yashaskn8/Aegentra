@@ -18,7 +18,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: python -m pip install --require-hashes -r requirements.lock
+        run: |
+          python -m pip install --require-hashes -r requirements.lock
           python -m pip install --no-deps -e '.[dev]'
           python -m pip check
       - name: Catch unused and undefined backend code
@@ -61,7 +62,8 @@ jobs:
           sudo -u postgres createdb aegentra_ci
       - name: Install backend
         working-directory: backend
-        run: python -m pip install --require-hashes -r requirements.lock
+        run: |
+          python -m pip install --require-hashes -r requirements.lock
           python -m pip install --no-deps -e '.[dev]'
           python -m pip check
       - name: Apply actual Alembic migration
