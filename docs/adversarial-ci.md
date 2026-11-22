@@ -32,8 +32,13 @@ tests. CI does not mutate an AWS account.
 
 ## Dependency and static analysis
 
-- `pip-audit --strict backend` blocks known advisory findings in the
-  Python project's current resolved dependency tree.
+- `backend/requirements.lock` pins the Python 3.12 application and dev
+  packages to exact versions and SHA-256 hashes. Backend jobs install with
+  `pip --require-hashes`, then install the project using `--no-deps` and
+  verify the result using `pip check`.
+- `pip-audit --strict --disable-pip -r backend/requirements.lock` checks
+  the reviewed Python dependency resolution for known advisories without
+  silently selecting newer packages.
 - Frontend and infrastructure dependency graphs are audited with
   `npm audit --audit-level=high`; any high or critical advisory fails
   that job. The entire tree is resolved from the reviewed,
@@ -48,6 +53,13 @@ tests. CI does not mutate an AWS account.
   for comparing installed dependency resolutions. They do not replace
   committed lockfiles.
 
+- `scripts/supply_chain.py` generates and rechecks a deterministic
+  unsigned CycloneDX 1.5 inventory from the committed Python and npm locks,
+  including SHA-256/SHA-512 distribution hashes and clear metadata for npm
+  packages bundled without independent hashes. The SBOM is uploaded as a CI
+  artifact for review. It is not a signature or runtime attestation.
+  See [Python supply-chain operations](python-supply-chain.md).
+
 ## External gates and coverage gaps
 
 No automated CI can exercise or prove every possible attack or eliminate
@@ -56,8 +68,9 @@ qualified adversarial F01–F15 production fixture evidence, real isolated
 AWS cross-account IAM/network/link-local/IMDS drills, hardware-backed
 reviewer and witness signing, customer TLS and origin-bypass tests,
 destructive EBS disposal verification or external immutable audit custody.
-A deterministic, reviewed Python dependency lock and a formal SBOM/
-signed artifact provenance gate are still outstanding.
+The deterministic lockfile-based CycloneDX inventory is now emitted by CI,
+but **signed build provenance**, an independent build/rebuild match and
+runtime image/package SBOM verification remain outstanding.
 
 GitHub branch protection, required-check configuration, dependency
 updates, secret scanning and deployment environment approvals must also

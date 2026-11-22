@@ -20,6 +20,11 @@ skips, Python/npm dependency advisories and Python/JS/TS CodeQL. Both npm
 projects now use committed, audited lockfiles and `npm ci`. See
 [adversarial CI operations](docs/adversarial-ci.md).
 
+The Python 3.12 backend now has a SHA-256-hashed dependency lock
+(`backend/requirements.lock`), and CI publishes a deterministic, unsigned
+CycloneDX inventory of Python, frontend and infrastructure packages. See
+[Python supply-chain operations](docs/python-supply-chain.md).
+
 CI does **not** prove that live AWS isolation, image provenance, physical
 deletion, credential custody or production release gates are qualified.
 Protected production is **NO-GO**.
@@ -32,7 +37,9 @@ python -m venv .venv
 # Linux/macOS:
 source .venv/bin/activate
 # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install -e '.[dev]'
+python -m pip install --require-hashes -r requirements.lock
+python -m pip install --no-deps -e '.[dev]'
+python -m pip check
 python -m pytest -q
 uvicorn aegentra.api:app --reload
 ```
@@ -45,11 +52,11 @@ To apply PostgreSQL schema migrations in a dedicated development database, set `
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Vite's development proxy forwards `/v1` to the local FastAPI service. Review and commit an audited `package-lock.json` before enabling release builds or production CI; none is provided by this initial scaffold.
+Vite's development proxy forwards `/v1` to the local FastAPI service. Frontend and infrastructure installs use committed audited npm lockfiles; these do not qualify protected production releases.
 
 ## Engineering rules
 

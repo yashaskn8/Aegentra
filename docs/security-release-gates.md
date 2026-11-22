@@ -24,6 +24,12 @@ or customer TLS behavior are configured correctly.
 | D14 jobs/events | Fenced leases, default-disabled bounded 30-second watchdog/8-minute attempt decision loop, creation/physical one-way journals, native create/attach/terminate-request adapters, exact EBS inventory, two-pass detach, outbox and janitor intents | Independently deployed watchdog/crash recovery, qualified live provisioning and guest devices, actual deadline/termination/disposal drills, retries and quotas |
 | D15 evidence efficacy | Static facts only, explicit unknown/incomplete states | Independent accuracy datasets and proof provenance |
 
+**Supply-chain CI qualifier:** Python 3.12 hashed dependencies,
+locked npm installs and deterministic unsigned CycloneDX source-dependency
+inventories are now enforced by CI. Independent signed build provenance,
+container-free native guest image reproducibility and physical deployment
+integrity checks are not qualified. CI success does not satisfy D6 or D15.
+
 **Non-negotiable gating:** production ENFORCED requires all relevant P0
 witness/origin/custody/STOP and Matrix C oracles, independently checked. No
 "emergency allow." A historical mismatched observation does not disable a

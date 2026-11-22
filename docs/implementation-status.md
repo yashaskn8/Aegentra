@@ -11,6 +11,26 @@ origin, one exact HTML entry document and one same-origin classic JavaScript
 resource**. Arbitrary React builds, third-party CDNs, dynamic dependency
 loaders and generic web ecosystems remain investigation/shadow only.
 
+## Hashed Python backend dependencies and offline SBOM — 22 November 2026
+
+- The reviewed Python 3.12 backend and development dependency graph now
+  has an exact-version `backend/requirements.lock` with SHA-256 hashes.
+  Native backend, PostgreSQL and hostile-input test jobs install the lock
+  using pip hash-checking mode, then install the first-party package without
+  altering its dependency tree, and verify consistency with `pip check`.
+- The Python advisory job audits the committed hashed requirements directly,
+  without fetching or resolving a different version graph. The supply-chain
+  policy blocks the removal of locked installs or the required audit command.
+- Offline deterministic CycloneDX 1.5 source dependency inventory
+  (`scripts/supply_chain.py`) includes Python and npm versions, recorded
+  distribution digests, source lockfile SHA-256 digests, and explicit
+  differentiation of bundled npm entries without independent hashes.
+  An SBOM test job checks missing hashes, malformed registries, direct
+  dependency closure and manifest drift and uploads a reviewable artifact.
+- The generated SBOM is **unsigned** and describes committed dependency
+  locks, not physical build output, native guest images or deployed bytes.
+  See [Python supply-chain operations](python-supply-chain.md).
+
 ## Strict adversarial and supply-chain CI — 22 November 2026
 
 - A separate read-only-token security workflow runs on every push, pull
