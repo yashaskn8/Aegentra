@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 from urllib.parse import quote
 
@@ -118,6 +119,11 @@ def npm_components(lock: dict, manifest: dict, project: str, *, minimum: int = 1
         components.append(item)
     if len(components) < minimum:
         raise SupplyChainError(f"{project}: npm inventory unexpectedly small")
+    named = {item["name"] for item in components}
+    for kind in ("dependencies", "devDependencies", "optionalDependencies"):
+        for name in manifest.get(kind, {}):
+            if name not in named:
+                raise SupplyChainError(f"{project}: declared npm dependency missing from lock")
     return components
 
 
@@ -131,7 +137,18 @@ def build_sbom(root: Path = ROOT) -> dict:
             "value": hashlib.sha256(content).hexdigest(),
         })
         if relative.startswith("backend/"):
-            components.extend(python_components(content.decode("utf-8")))
+            python = python_components(content.decode("utf-8"))
+            declared = tomllib.loads(
+                (root / "backend/pyproject.toml").read_text("utf-8")
+            )["project"]
+            names = {component["name"] for component in python}
+            specs = list(declared["dependencies"])
+            specs += declared.get("optional-dependencies", {}).get("dev", [])
+            for spec in specs:
+                match = re.match(r"[A-Za-z0-9][A-Za-z0-9_.-]*", spec)
+                if match is None or re.sub(r"[-_.]+", "-", match.group()).lower() not in names:
+                    raise SupplyChainError("declared Python dependency missing from lock")
+            components.extend(python)
         else:
             project = relative.split("/")[0]
             components.extend(npm_components(
