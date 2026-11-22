@@ -123,6 +123,21 @@ def check_workflows(root: Path = ROOT) -> None:
     for required in REQUIRED_WORKFLOWS:
         if not (directory / required).is_file():
             raise SecurityGateError(f"missing security-required workflow: {required}")
+    if not (root / "backend/requirements.lock").is_file():
+        raise SecurityGateError("missing SHA-256-hashed Python 3.12 lock")
+    backend = (directory / "backend.yml").read_text(encoding="utf-8")
+    if backend.count("python -m pip install --require-hashes -r requirements.lock") < 2:
+        raise SecurityGateError("backend CI no longer uses hashed Python dependencies")
+    security = (directory / "security.yml").read_text(encoding="utf-8")
+    for item in (
+        "python -m pip install --require-hashes -r requirements.lock",
+        "pip-audit --strict --disable-pip -r backend/requirements.lock",
+        "scripts/supply_chain.py generate",
+        "scripts/supply_chain.py verify",
+        "source-dependency-sbom",
+    ):
+        if item not in security:
+            raise SecurityGateError(f"required supply-chain gate missing: {item}")
     for project in ("frontend", "infra"):
         if not (root / project / "package-lock.json").is_file():
             raise SecurityGateError(f"missing committed, audited npm lock: {project}")
