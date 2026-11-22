@@ -18,7 +18,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: python -m pip install -e '.[dev]'
+        run: python -m pip install --require-hashes -r requirements.lock
+          python -m pip install --no-deps -e '.[dev]'
+          python -m pip check
       - name: Catch unused and undefined backend code
         run: ruff check aegentra --select F401,F841,F821
       - name: Run unit tests
@@ -59,7 +61,9 @@ jobs:
           sudo -u postgres createdb aegentra_ci
       - name: Install backend
         working-directory: backend
-        run: python -m pip install -e '.[dev]'
+        run: python -m pip install --require-hashes -r requirements.lock
+          python -m pip install --no-deps -e '.[dev]'
+          python -m pip check
       - name: Apply actual Alembic migration
         working-directory: backend
         run: alembic upgrade head
