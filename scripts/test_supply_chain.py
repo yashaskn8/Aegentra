@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import tempfile
 import unittest
@@ -25,7 +26,7 @@ def npm_fixture() -> tuple[dict, dict]:
     lock = {
         "lockfileVersion": 3,
         "packages": {
-            "": dict(manifest),
+            "": copy.deepcopy(manifest),
             **{
                 f"node_modules/pkg{i}": {
                     "version": "1.2.3",
