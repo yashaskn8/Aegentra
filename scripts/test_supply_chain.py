@@ -76,12 +76,24 @@ class SupplyChainTests(unittest.TestCase):
         with self.assertRaises(SupplyChainError):
             npm_components(lock, manifest, "frontend")
 
+    def test_declared_npm_dependency_cannot_disappear_from_lock(self):
+        lock, manifest = npm_fixture()
+        lock["packages"].pop("node_modules/pkg0")
+        with self.assertRaises(SupplyChainError):
+            npm_components(lock, manifest, "frontend")
+
     def test_deterministic_sbom_and_mutation_detection(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for project in ("backend", "frontend", "infra"):
                 (root / project).mkdir()
             (root / "backend/requirements.lock").write_text(python_lock(), encoding="utf-8")
+            (root / "backend/pyproject.toml").write_text(
+                "[project]\nname='aegentra-backend'\nversion='0.1.0'\n"
+                "dependencies=['pkg0>=1']\n"
+                "[project.optional-dependencies]\ndev=['pkg1>=1']\n",
+                encoding="utf-8",
+            )
             for project in ("frontend", "infra"):
                 lock, manifest = npm_fixture()
                 (root / project / "package-lock.json").write_text(json.dumps(lock))
