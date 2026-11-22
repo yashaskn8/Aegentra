@@ -11,6 +11,27 @@ origin, one exact HTML entry document and one same-origin classic JavaScript
 resource**. Arbitrary React builds, third-party CDNs, dynamic dependency
 loaders and generic web ecosystems remain investigation/shadow only.
 
+## Strict adversarial and supply-chain CI — 22 November 2026
+
+- A separate read-only-token security workflow runs on every push, pull
+  request and weekly schedule, with SHA-pinned official actions and
+  CodeQL `security-extended` and `security-and-quality` queries for Python
+  and JavaScript/TypeScript.
+- Hard-gated hostile-input regression modules require a real JUnit result,
+  at least 75 cases, and no missing, failed or skipped module. PostgreSQL RLS
+  and custody tests remain in the native integration workflow.
+- Python project advisories (`pip-audit --strict`), high/critical npm
+  advisories, and tracked-text credential patterns are checked without
+  ignored advisories or `continue-on-error`.
+- Frontend and infrastructure npm dependency resolutions were captured
+  after a passing audit and committed as `package-lock.json`. CI now
+  requires `npm ci` and fails on a missing lockfile or weakened workflow
+  permissions. A reported critical Vitest mocker advisory caused the
+  frontend test dependency to be raised to patched `^4.1.12`; CI runs
+  Node 24/npm 11 rather than the affected npm 10 installer.
+- These are static/synthetic gates, not independent live AWS or origin
+  qualifications. See [adversarial CI operations](adversarial-ci.md).
+
 ## Additional completed contracts in this implementation pass
 
 - **S0 independently signed origin scope:** customer-origin owner and

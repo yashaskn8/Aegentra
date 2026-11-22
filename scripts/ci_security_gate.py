@@ -123,6 +123,16 @@ def check_workflows(root: Path = ROOT) -> None:
     for required in REQUIRED_WORKFLOWS:
         if not (directory / required).is_file():
             raise SecurityGateError(f"missing security-required workflow: {required}")
+    for project in ("frontend", "infra"):
+        if not (root / project / "package-lock.json").is_file():
+            raise SecurityGateError(f"missing committed, audited npm lock: {project}")
+        source = (directory / f"{project}.yml").read_text(encoding="utf-8")
+        if "npm ci --no-audit --no-fund" not in source:
+            raise SecurityGateError(f"{project}: reproducible npm ci is mandatory")
+    if "npm ci --ignore-scripts --no-audit --no-fund" not in (
+        directory / "security.yml"
+    ).read_text(encoding="utf-8"):
+        raise SecurityGateError("npm security audit must use immutable lockfiles")
     workflows = sorted((*directory.glob("*.yml"), *directory.glob("*.yaml")))
     for path in workflows:
         check_workflow_source(path, path.read_text(encoding="utf-8"))

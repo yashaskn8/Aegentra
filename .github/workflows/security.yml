@@ -86,7 +86,7 @@ jobs:
           node-version: "24"
       - name: Resolve npm dependency tree without lifecycle scripts
         working-directory: ${{ matrix.package }}
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Block high and critical npm advisories
         working-directory: ${{ matrix.package }}
         run: npm audit --audit-level=high
@@ -97,12 +97,6 @@ jobs:
           path: ${{ matrix.package }}/package-lock.json
           if-no-files-found: error
           retention-days: 2
-      - name: Capture audited lockfile for immutable Git blob creation
-        working-directory: ${{ matrix.package }}
-        run: |
-          printf 'AEGENTRA_LOCK_BEGIN\\n'
-          base64 --wrap=0 package-lock.json
-          printf '\\nAEGENTRA_LOCK_END\\n'
 
   codeql:
     name: CodeQL / ${{ matrix.language }}

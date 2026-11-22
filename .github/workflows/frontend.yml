@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: "24"
       - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Check TypeScript and build Vite
         run: npm run build
       - name: Test scoped console rendering

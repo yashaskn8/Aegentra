@@ -11,6 +11,19 @@ Aegentra is an evidence-first software supply-chain security project based on th
 - PostgreSQL (AWS RDS for a future qualified deployment)
 - Native Linux / EC2 / systemd; **no Docker or Kubernetes**
 
+## Adversarial security CI (nonproduction)
+
+Every push to `main`, pull request and scheduled weekly security run checks
+pinned GitHub Actions, least-privilege workflow tokens, high-confidence
+tracked-text credentials, explicit fail-closed adversarial tests with no silent
+skips, Python/npm dependency advisories and Python/JS/TS CodeQL. Both npm
+projects now use committed, audited lockfiles and `npm ci`. See
+[adversarial CI operations](docs/adversarial-ci.md).
+
+CI does **not** prove that live AWS isolation, image provenance, physical
+deletion, credential custody or production release gates are qualified.
+Protected production is **NO-GO**.
+
 ## Backend — local development
 
 ```bash
