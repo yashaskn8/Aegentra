@@ -97,6 +97,12 @@ jobs:
           path: ${{ matrix.package }}/package-lock.json
           if-no-files-found: error
           retention-days: 2
+      - name: Capture audited lockfile for immutable Git blob creation
+        working-directory: ${{ matrix.package }}
+        run: |
+          printf 'AEGENTRA_LOCK_BEGIN\\n'
+          base64 --wrap=0 package-lock.json
+          printf '\\nAEGENTRA_LOCK_END\\n'
 
   codeql:
     name: CodeQL / ${{ matrix.language }}
