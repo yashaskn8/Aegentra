@@ -180,3 +180,22 @@ def test_stale_or_wrong_head_nonce_cannot_be_used():
     observer.fetch_head = wrong
     with pytest.raises(ReadbackUnavailable):
         asyncio.run(measure(observer, transport))
+
+
+@pytest.mark.parametrize("invalid_timeout", [
+    float("nan"), float("inf"), float("-inf"), 0, -1, 2.01,
+    True, False, "2", None,
+])
+def test_observer_rejects_unbounded_or_non_numeric_timeout_before_network(invalid_timeout):
+    observer, _, _, _, _, _ = fixture()
+    options = dict(vars(observer))
+    options["timeout"] = invalid_timeout
+    with pytest.raises(ValueError, match="observer enrolled profile is incomplete"):
+        NativeReadbackObserver(**options)
+
+
+def test_observer_accepts_finite_bounded_timeout():
+    observer, _, _, _, _, _ = fixture()
+    options = dict(vars(observer))
+    for timeout in (0.001, 1, 2.0):
+        assert NativeReadbackObserver(**{**options, "timeout": timeout}).timeout == timeout

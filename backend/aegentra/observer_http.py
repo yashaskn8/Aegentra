@@ -7,6 +7,7 @@ sampling. An outage raises ReadbackUnavailable rather than forging a result.
 from __future__ import annotations
 
 import hashlib
+import math
 import secrets
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
@@ -104,6 +105,8 @@ class NativeReadbackObserver:
             path not in {profile.entry_path, profile.script_path}
             or not cohort or len(cohort) > 64
             or not observer_key_id
+            or type(timeout) not in (int, float)
+            or not math.isfinite(timeout)
             or timeout <= 0 or timeout > 2.0
         ):
             raise ValueError("observer enrolled profile is incomplete")

@@ -23,3 +23,12 @@ access to all enrolled client cohorts, HTTP/2 and CDN header behavior,
 latency/timing, loss-of-signer and outage alarm drills remain required.
 The production caller must set `trust_env=False`, use independent CA
 trust and never accept browser-configured arbitrary URLs.
+
+## Bounded observer transport timeout — 23 November 2026
+
+The native readback constructor rejects NaN, positive/negative infinity, booleans,
+non-numeric values, zero, and timeouts above two seconds. A non-finite timeout
+must never bypass the maximum readback deadline through floating-point comparisons.
+Synthetic regression tests exercise rejected values and valid finite boundaries.
+This is a constructor contract, not proof of a live network deadline, independent
+observer deployment, or production release qualification.
