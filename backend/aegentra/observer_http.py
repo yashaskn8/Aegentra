@@ -127,7 +127,9 @@ class NativeReadbackObserver:
     async def measure(self, client: httpx.AsyncClient) -> SignedObservation:
         nonce = secrets.token_urlsafe(32)
         try:
-            envelope = await self.fetch_head(nonce)
+            # The authority is an independent network dependency. Bound its
+            # response separately so a stalled head cannot hang observation.
+            envelope = await asyncio.wait_for(self.fetch_head(nonce), timeout=self.timeout)
             head = verify_head(
                 envelope, pinned_key_der=self.head_key_der,
                 nonce=nonce, org_id=self.org_id,

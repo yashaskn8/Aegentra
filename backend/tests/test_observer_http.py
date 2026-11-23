@@ -220,3 +220,19 @@ def test_slow_stream_cannot_extend_total_observer_deadline(timeout):
 
     with pytest.raises(ReadbackUnavailable, match="could not be sampled"):
         asyncio.run(measure(observer, httpx.MockTransport(handler)))
+
+
+def test_stalled_authority_head_fails_closed_before_http_request():
+    observer, _, _, _, _, _ = fixture()
+    observer.timeout = 0.01
+
+    async def stalled_head(_nonce):
+        await asyncio.sleep(1)
+        raise AssertionError("stalled head unexpectedly returned")
+
+    def unexpected_http(_request):
+        raise AssertionError("HTTP sampling must not start without a verified head")
+
+    observer.fetch_head = stalled_head
+    with pytest.raises(ReadbackUnavailable, match="fresh signed authority head unavailable"):
+        asyncio.run(measure(observer, httpx.MockTransport(unexpected_http)))

@@ -42,3 +42,13 @@ slowly sending chunks within individual read timeouts. Expiry is
 `ReadbackUnavailable`, never a signed complete or healthy observation.
 Synthetic delayed-stream tests exercise this fail-closed behavior. This
 is not a substitute for independent production network and clock drills.
+
+## Bounded authority-head retrieval — 23 November 2026
+
+The independent authority-head request has its own bounded asynchronous deadline,
+using the same validated maximum two-second timeout as HTTP readback. A stalled
+head fails closed as `ReadbackUnavailable` before any customer-facing HTTP
+request starts. The authority and HTTP budgets are separate; this does **not**
+assert a single end-to-end bound across head retrieval, KMS signing and readback.
+A synthetic stalled-head regression exercises the rejection. Independent
+network, key-custody and real-service timeout qualification remain outstanding.
