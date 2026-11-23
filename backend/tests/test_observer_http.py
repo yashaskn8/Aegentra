@@ -199,3 +199,24 @@ def test_observer_accepts_finite_bounded_timeout():
     options = dict(vars(observer))
     for timeout in (0.001, 1, 2.0):
         assert NativeReadbackObserver(**{**options, "timeout": timeout}).timeout == timeout
+
+
+@pytest.mark.parametrize("timeout", [0.005, 0.02])
+def test_slow_stream_cannot_extend_total_observer_deadline(timeout):
+    observer, _, _, _, _, html = fixture()
+    observer.timeout = timeout
+
+    class SlowStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            # A valid first chunk must not permit the peer to keep the
+            # observation open by delaying later chunks.
+            yield html[:1]
+            await asyncio.sleep(timeout * 10 + 0.05)
+            yield html[1:]
+
+    def handler(request):
+        headers = observer.profile.headers(path="/index.html", content=html)
+        return httpx.Response(200, headers=headers, stream=SlowStream(), request=request)
+
+    with pytest.raises(ReadbackUnavailable, match="could not be sampled"):
+        asyncio.run(measure(observer, httpx.MockTransport(handler)))

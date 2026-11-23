@@ -32,3 +32,13 @@ must never bypass the maximum readback deadline through floating-point compariso
 Synthetic regression tests exercise rejected values and valid finite boundaries.
 This is a constructor contract, not proof of a live network deadline, independent
 observer deployment, or production release qualification.
+
+## End-to-end stream deadline — 23 November 2026
+
+In addition to the bounded httpx per-operation timeout, the observer now
+wraps the entire HTTPS request and raw response stream in an asyncio total
+wall-clock deadline. A peer cannot keep a sample alive indefinitely by
+slowly sending chunks within individual read timeouts. Expiry is
+`ReadbackUnavailable`, never a signed complete or healthy observation.
+Synthetic delayed-stream tests exercise this fail-closed behavior. This
+is not a substitute for independent production network and clock drills.

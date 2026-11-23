@@ -6,6 +6,7 @@ sampling. An outage raises ReadbackUnavailable rather than forging a result.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import math
 import secrets
@@ -141,23 +142,26 @@ class NativeReadbackObserver:
 
         url = f"https://{self.profile.host}{self.path}"
         try:
-            async with client.stream(
-                "GET", url, headers={
-                    "Accept-Encoding": "identity", "Cache-Control": "no-store",
-                }, follow_redirects=False, timeout=self.timeout,
-            ) as response:
-                if response.headers.get("content-encoding", "identity") != "identity":
-                    raise ReadbackUnavailable("encoded representation cannot be measured")
-                observed_status = response.status_code
-                profile_hash = observed_profile_sha256(response.headers)
-                content = bytearray()
-                complete = True
-                async for chunk in response.aiter_raw():
-                    if len(content) + len(chunk) > MAX_READBACK:
-                        complete = False
-                        break
-                    content.extend(chunk)
-        except (httpx.HTTPError, OSError) as exc:
+            # httpx timeouts bound individual network operations, not the total
+            # duration of a response that slowly streams bytes forever.
+            async with asyncio.timeout(self.timeout):
+                async with client.stream(
+                    "GET", url, headers={
+                        "Accept-Encoding": "identity", "Cache-Control": "no-store",
+                    }, follow_redirects=False, timeout=self.timeout,
+                ) as response:
+                    if response.headers.get("content-encoding", "identity") != "identity":
+                        raise ReadbackUnavailable("encoded representation cannot be measured")
+                    observed_status = response.status_code
+                    profile_hash = observed_profile_sha256(response.headers)
+                    content = bytearray()
+                    complete = True
+                    async for chunk in response.aiter_raw():
+                        if len(content) + len(chunk) > MAX_READBACK:
+                            complete = False
+                            break
+                        content.extend(chunk)
+        except (httpx.HTTPError, OSError, TimeoutError) as exc:
             raise ReadbackUnavailable("client-facing response could not be sampled") from exc
         observed = hashlib.sha256(content).hexdigest()
         measured_at = self.clock()
