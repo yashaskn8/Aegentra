@@ -119,11 +119,11 @@ def npm_components(lock: dict, manifest: dict, project: str, *, minimum: int = 1
         components.append(item)
     if len(components) < minimum:
         raise SupplyChainError(f"{project}: npm inventory unexpectedly small")
-    named = {item["name"] for item in components}
+    # A nested transitive copy cannot satisfy a direct root declaration.
     for kind in ("dependencies", "devDependencies", "optionalDependencies"):
         for name in manifest.get(kind, {}):
-            if name not in named:
-                raise SupplyChainError(f"{project}: declared npm dependency missing from lock")
+            if f"node_modules/{name}" not in lock["packages"]:
+                raise SupplyChainError(f"{project}: declared npm dependency missing from root lock")
     return components
 
 

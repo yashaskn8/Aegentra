@@ -82,6 +82,32 @@ class SupplyChainTests(unittest.TestCase):
         with self.assertRaises(SupplyChainError):
             npm_components(lock, manifest, "frontend")
 
+    def test_nested_copy_cannot_satisfy_root_dependency(self):
+        for kind in ("dependencies", "devDependencies", "optionalDependencies"):
+            for name in ("pkg0", "@scope/pkg0"):
+                with self.subTest(kind=kind, name=name):
+                    lock, manifest = npm_fixture()
+                    manifest.pop("dependencies")
+                    manifest[kind] = {name: "^1.2.0"}
+                    lock["packages"][""] = copy.deepcopy(manifest)
+                    package = lock["packages"].pop("node_modules/pkg0")
+                    lock["packages"][f"node_modules/pkg1/node_modules/{name}"] = package
+                    with self.assertRaisesRegex(SupplyChainError, "missing from root lock"):
+                        npm_components(lock, manifest, "frontend")
+
+    def test_root_and_nested_copies_remain_distinct(self):
+        lock, manifest = npm_fixture()
+        manifest["dependencies"]["@scope/pkg0"] = "^1.2.0"
+        lock["packages"][""] = copy.deepcopy(manifest)
+        for location in ("node_modules/@scope/pkg0", "node_modules/pkg1/node_modules/@scope/pkg0"):
+            lock["packages"][location] = copy.deepcopy(lock["packages"]["node_modules/pkg0"])
+        components = npm_components(lock, manifest, "frontend")
+        refs = {item["bom-ref"] for item in components if item["name"] == "@scope/pkg0"}
+        self.assertEqual(refs, {
+            "npm:frontend:node_modules/@scope/pkg0",
+            "npm:frontend:node_modules/pkg1/node_modules/@scope/pkg0",
+        })
+
     def test_deterministic_sbom_and_mutation_detection(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

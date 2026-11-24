@@ -13,6 +13,11 @@
   Duplicate Python identity, missing hash, unpinned package, unexpected
   npm download URL, malformed package identity, or missing declared
   direct dependency fails the job.
+- Direct npm runtime, development and optional dependencies must have an
+  exact root `node_modules/<name>` lock entry (including scoped names).
+  A nested transitive copy cannot substitute for a missing root entry;
+  valid root and nested copies remain distinct inventory components.
+  This checks declared lockfile closure, not installed bytes or provenance.
 - Native npm packages marked `inBundle` may have no separate integrity
   field; they are listed explicitly as **bundled-with-parent** rather
   than being incorrectly labeled independently hashed.
