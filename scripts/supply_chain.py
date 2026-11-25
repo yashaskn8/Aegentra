@@ -22,6 +22,22 @@ class SupplyChainError(ValueError):
     pass
 
 
+def _unique_json_properties(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise SupplyChainError("duplicate JSON property in npm metadata")
+        result[key] = value
+    return result
+
+
+def _load_npm_json(raw: bytes) -> dict:
+    value = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_json_properties)
+    if not isinstance(value, dict):
+        raise SupplyChainError("npm metadata must be a JSON object")
+    return value
+
+
 def python_components(raw: str, *, minimum: int = 10) -> list[dict]:
     """Deny unpinned names, absent wheel hashes and executable pip directives."""
     packages: dict[str, dict] = {}
@@ -152,8 +168,8 @@ def build_sbom(root: Path = ROOT) -> dict:
         else:
             project = relative.split("/")[0]
             components.extend(npm_components(
-                json.loads(content),
-                json.loads((root / project / "package.json").read_text("utf-8")),
+                _load_npm_json(content),
+                _load_npm_json((root / project / "package.json").read_bytes()),
                 project,
             ))
     refs = [component["bom-ref"] for component in components]

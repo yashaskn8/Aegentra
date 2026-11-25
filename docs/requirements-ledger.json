@@ -10,7 +10,7 @@
     {
       "id": "SA-1.1-section-3-utf8",
       "source_section": "3. Intake, release identity and enrollment",
-      "status": "implemented_ci_passed_at_recorded_commit_current_change_pending",
+      "status": "implemented_ci_passed_at_recorded_commit",
       "baseline_commit": "cef6dabd6c867fb20845e629469f44f5bfc9beb8",
       "acceptance": [
         "Reject non-UTF-8 and malformed UTF-8 JSON before schema validation",
@@ -38,6 +38,17 @@
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; rfc8785 and Python 3.12 unavailable",
         "remote_ci": {
+          "commit": "ec201f64ec2a60166d1767551872c3a74a3647a2",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45606164901,
+            "frontend": 45606165308,
+            "infra": 45606164808,
+            "security": 45606164803
+          },
+          "note": "All four workflow conclusions verified at this commit; not production qualification."
+        },
+        "prior_remote_ci": {
           "commit": "e97d235991eae779d2d82369dda3aac192197ae1",
           "conclusion": "success",
           "runs": {
@@ -47,17 +58,6 @@
             "security": 45605708662
           },
           "note": "CI passed at the previous integrated revision. Shared decoder change requires revalidation."
-        },
-        "prior_remote_ci": {
-          "commit": "dc9035cb9b1a4212fe0c0fcf663b9f6164bce406",
-          "conclusion": "success",
-          "runs": {
-            "backend": 45603855577,
-            "frontend": 45603855734,
-            "infra": 45603855573,
-            "security": 45603855606
-          },
-          "note": "Historical acceptance for the recorded commit only; changed downstream lockfile code and fixtures require fresh CI."
         }
       },
       "research": [
@@ -69,7 +69,7 @@
     {
       "id": "SA-1.1-D7-lockfile-integrity",
       "source_section": "4. Analysis, detection and evidence (D7)",
-      "status": "implemented_ci_passed_at_recorded_commit_current_change_pending",
+      "status": "implemented_ci_passed_at_recorded_commit",
       "baseline_commit": "dc9035cb9b1a4212fe0c0fcf663b9f6164bce406",
       "acceptance": [
         "Single-token SHA-256/384/512 standard Base64 integrity requires exact decoded digest width and canonical padding",
@@ -95,6 +95,17 @@
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; Python 3.12 and rfc8785 unavailable",
         "remote_ci": {
+          "commit": "ec201f64ec2a60166d1767551872c3a74a3647a2",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45606164901,
+            "frontend": 45606165308,
+            "infra": 45606164808,
+            "security": 45606164803
+          },
+          "note": "All four workflow conclusions verified at this commit; not production qualification."
+        },
+        "prior_remote_ci": {
           "commit": "e97d235991eae779d2d82369dda3aac192197ae1",
           "conclusion": "success",
           "runs": {
@@ -115,7 +126,7 @@
     {
       "id": "SA-1.1-section-3-unicode-scalars",
       "source_section": "3. Intake, release identity and enrollment",
-      "status": "implemented_local_focused_tests_remote_ci_pending",
+      "status": "implemented_ci_passed_at_recorded_commit",
       "baseline_commit": "e97d235991eae779d2d82369dda3aac192197ae1",
       "acceptance": [
         "Reject unpaired surrogate escapes in JSON keys and values at any allowed depth",
@@ -139,12 +150,54 @@
         "focused_validation": "56 passed, Python 3.13.5",
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; Python 3.12 and rfc8785 unavailable",
-        "remote_ci": "pending"
+        "remote_ci": {
+          "commit": "ec201f64ec2a60166d1767551872c3a74a3647a2",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45606164901,
+            "frontend": 45606165308,
+            "infra": 45606164808,
+            "security": 45606164803
+          },
+          "note": "All four workflow conclusions verified at this commit; not production qualification."
+        }
       },
       "research": [
         "https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.2"
       ],
       "production_qualification": "BLOCKED; independent gates not satisfied"
+    },
+    {
+      "id": "SA-1.1-section-9-sbom-json-uniqueness",
+      "source_section": "9. AWS profiles, supply-chain operations and recovery",
+      "status": "CI PENDING",
+      "baseline_commit": "ec201f64ec2a60166d1767551872c3a74a3647a2",
+      "acceptance": [
+        "Reject duplicate object property names in both frontend and infrastructure npm manifests and lockfiles",
+        "Retain deterministic inventory output when valid input is restored",
+        "No new dependencies, no downloaded or executed package content"
+      ],
+      "code": [
+        "scripts/supply_chain.py"
+      ],
+      "tests": [
+        "scripts/test_supply_chain.py"
+      ],
+      "evidence": {
+        "git_blob_sha1": {
+          "scripts/supply_chain.py": "a9abaa5420182d90bba183173f16fbcad4161071",
+          "scripts/test_supply_chain.py": "b830b2b1b1cb28e11ab746d10b5ed4b5b66abeef"
+        },
+        "baseline_regression": "9 test methods executed; 4 duplicate-key subcases failed",
+        "focused_validation": "9 test methods passed, including all four duplicate-key subcases, Python 3.13.5",
+        "compileall": "passed",
+        "full_python_3_12_suite": "not executed locally; native Git DNS unavailable; fixture-only validation",
+        "remote_ci": "pending"
+      },
+      "research": [
+        "https://www.rfc-editor.org/rfc/rfc8259#section-4"
+      ],
+      "production_qualification": "BLOCKED; unsigned inventory is not independently verified provenance"
     }
   ]
 }

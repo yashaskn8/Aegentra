@@ -108,6 +108,35 @@ class SupplyChainTests(unittest.TestCase):
             "npm:frontend:node_modules/pkg1/node_modules/@scope/pkg0",
         })
 
+    def test_duplicate_npm_json_keys_block_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for project in ("backend", "frontend", "infra"):
+                (root / project).mkdir()
+            (root / "backend/requirements.lock").write_text(python_lock(), encoding="utf-8")
+            (root / "backend/pyproject.toml").write_text(
+                "[project]\ndependencies=['pkg0>=1']\n", encoding="utf-8",
+            )
+            for project in ("frontend", "infra"):
+                lock, manifest = npm_fixture()
+                (root / project / "package-lock.json").write_text(json.dumps(lock), encoding="utf-8")
+                (root / project / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
+            original = serialized_sbom(root)
+            for project in ("frontend", "infra"):
+                for name, member in (("package-lock.json", '"lockfileVersion": 3'),
+                                     ("package.json", '"pkg0": "^1.2.0"')):
+                    path = root / project / name
+                    raw = path.read_text("utf-8")
+                    with self.subTest(project=project, file=name):
+                        self.assertIn(member, raw)
+                        path.write_text(raw.replace(member, member + ", " + member, 1), encoding="utf-8")
+                        try:
+                            with self.assertRaisesRegex(SupplyChainError, "duplicate JSON property"):
+                                serialized_sbom(root)
+                        finally:
+                            path.write_text(raw, encoding="utf-8")
+            self.assertEqual(serialized_sbom(root), original)
+
     def test_deterministic_sbom_and_mutation_detection(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

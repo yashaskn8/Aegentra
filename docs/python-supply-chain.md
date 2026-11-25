@@ -62,3 +62,14 @@ native AMI builds, physical source-to-image comparison, hardware-backed
 review signatures, cross-account trust and deletion/isolated-host drills.
 These are mandatory for protected production. Passing CI remains a
 development/shadow signal, not an ENFORCED release approval.
+
+## Unambiguous npm JSON input
+
+The offline inventory now rejects duplicate property names at every object
+level in both npm manifests and lockfiles rather than allowing Python's
+last-value interpretation. Both inputs must be UTF-8 JSON objects. The
+regression exercises full inventory generation for frontend and infrastructure
+inputs and confirms that restoring valid input restores deterministic output.
+This uses the standard library and adds no dependencies to the CI tool.
+See [RFC 8259 §4](https://www.rfc-editor.org/rfc/rfc8259#section-4).
+The inventory remains unsigned; this check does not verify installed bytes.
