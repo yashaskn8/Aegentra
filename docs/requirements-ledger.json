@@ -10,7 +10,7 @@
     {
       "id": "SA-1.1-section-3-utf8",
       "source_section": "3. Intake, release identity and enrollment",
-      "status": "implemented_local_focused_tests_remote_ci_pending",
+      "status": "implemented_ci_passed_at_recorded_commit_current_change_pending",
       "baseline_commit": "cef6dabd6c867fb20845e629469f44f5bfc9beb8",
       "acceptance": [
         "Reject non-UTF-8 and malformed UTF-8 JSON before schema validation",
@@ -37,13 +37,59 @@
         "focused_validation": "20 passed after fix, Python 3.13.5",
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; rfc8785 and Python 3.12 unavailable",
-        "remote_ci": "pending"
+        "remote_ci": {
+          "commit": "dc9035cb9b1a4212fe0c0fcf663b9f6164bce406",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45603855577,
+            "frontend": 45603855734,
+            "infra": 45603855573,
+            "security": 45603855606
+          },
+          "note": "Historical acceptance for the recorded commit only; changed downstream lockfile code and fixtures require fresh CI."
+        }
       },
       "research": [
         "https://www.rfc-editor.org/rfc/rfc8259#section-8.1",
         "https://docs.python.org/3.12/library/json.html#json.loads"
       ],
       "production_qualification": "BLOCKED; independent SA-1.1 gates not satisfied"
+    },
+    {
+      "id": "SA-1.1-D7-lockfile-integrity",
+      "source_section": "4. Analysis, detection and evidence (D7)",
+      "status": "implemented_local_focused_tests_remote_ci_pending",
+      "baseline_commit": "dc9035cb9b1a4212fe0c0fcf663b9f6164bce406",
+      "acceptance": [
+        "Single-token SHA-256/384/512 standard Base64 integrity requires exact decoded digest width and canonical padding",
+        "Malformed or missing integrity leaves coverage INCOMPLETE",
+        "Valid declared integrity is preserved without granting provenance or approval"
+      ],
+      "code": [
+        "backend/aegentra/lockfile_analysis.py"
+      ],
+      "tests": [
+        "backend/tests/test_lockfile_integrity.py",
+        "backend/tests/test_bounded_json.py",
+        "backend/tests/test_content_manifest.py"
+      ],
+      "evidence": {
+        "git_blob_sha1": {
+          "backend/aegentra/lockfile_analysis.py": "2467f8272d3e00e56987e8173a2673b7306548c3",
+          "backend/tests/test_bounded_json.py": "82283728a545e76b4edcd2c6ea3075d55113c14c",
+          "backend/tests/test_lockfile_integrity.py": "b1851f43f16ab2e0b41a6b72f904123484143099"
+        },
+        "baseline_regression": "14 failed, 8 passed before fix (initial 22-case integrity suite)",
+        "focused_validation": "43 passed after fix, Python 3.13.5; includes UTF-8 regressions and 23 integrity cases",
+        "compileall": "passed",
+        "full_python_3_12_suite": "not locally executed; Python 3.12 and rfc8785 unavailable",
+        "remote_ci": "pending"
+      },
+      "research": [
+        "https://www.rfc-editor.org/rfc/rfc4648#section-3.5",
+        "https://www.w3.org/TR/sri/"
+      ],
+      "production_qualification": "BLOCKED; no package bytes or external provenance verified"
     }
   ]
 }

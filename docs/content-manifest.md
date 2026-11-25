@@ -31,3 +31,16 @@ existing parser and exception names; the lockfile inspector directly uses the
 same bounded decoder and returns INCOMPLETE on invalid encoding. The canonical
 RFC 8785 output and approval contracts are unchanged. This is an input-validation
 control, not a claim that signed artifacts or production evidence are qualified.
+
+## D7 npm lockfile integrity validation
+
+For the existing single-token integrity profile, SHA-256/384/512 digests
+must decode from canonical standard Base64 to exactly 32/48/64 bytes.
+Malformed lengths, padding, alphabet, or nonzero unused padding bits are
+`INVALID_INTEGRITY` and keep the inventory `INCOMPLETE`. Missing integrity
+remains `MISSING_INTEGRITY`. The digest token is bounded before decoding.
+Valid declarations are retained unchanged; no tarball is downloaded or
+verified by this inspector. Multi-token SRI and other unsupported forms
+remain incomplete. See [RFC 4648 §3.5](https://www.rfc-editor.org/rfc/rfc4648#section-3.5)
+and [W3C SRI](https://www.w3.org/TR/sri/). This is metadata validation,
+not artifact provenance, semantic safety, or production qualification.

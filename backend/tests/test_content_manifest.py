@@ -109,7 +109,7 @@ def test_parse_manifest_json_rejects_unknown_or_missing_parts() -> None:
 def test_package_lock_v3_is_data_not_code() -> None:
     lock = {"lockfileVersion": 3, "packages": {
         "": {"name": "test"},
-        "node_modules/a": {"version": "1.0.0", "integrity": "sha512-YWJj"},
+        "node_modules/a": {"version": "1.0.0", "integrity": "sha512-" + "A" * 86 + "=="},
     }}
     report = inspect_package_lock(json.dumps(lock).encode())
     assert report.status == "REVIEWABLE"

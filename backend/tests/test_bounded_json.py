@@ -56,7 +56,7 @@ def test_existing_rejection_contract_is_preserved(raw, message):
 def test_lockfile_consumer_fails_closed_on_invalid_encoding(encoding):
     raw = json.dumps({"lockfileVersion": 3, "packages": {
         "": {"name": "fixture"},
-        "node_modules/a": {"version": "1.0.0", "integrity": "sha512-YWJj"},
+        "node_modules/a": {"version": "1.0.0", "integrity": "sha512-" + "A" * 86 + "=="},
     }}).encode(encoding)
     report = inspect_package_lock(raw)
     if encoding == "utf-8":

@@ -5,14 +5,31 @@ safety or provenance. Unknown formats are incomplete, not clean.
 """
 from __future__ import annotations
 
-import re
+import base64
+import binascii
 from dataclasses import dataclass
 
 from aegentra.bounded_json import ManifestError, strict_json
 
 MAX_LOCK_BYTES = 10 * 1024 * 1024
 MAX_PACKAGES = 2_000
-_INTEGRITY = re.compile(r"(?:sha256|sha384|sha512)-[A-Za-z0-9+/]+={0,2}\Z")
+_DIGEST_BYTES = {"sha256": 32, "sha384": 48, "sha512": 64}
+
+
+def _valid_integrity(value: object) -> bool:
+    # Keep the existing single-token standard-base64 profile; do not infer
+    # integrity from an unsupported format or an incorrectly sized digest.
+    if not isinstance(value, str) or len(value) > 95:
+        return False
+    algorithm, separator, encoded = value.partition("-")
+    size = _DIGEST_BYTES.get(algorithm)
+    if not separator or size is None or len(encoded) != 4 * ((size + 2) // 3):
+        return False
+    try:
+        digest = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        return False
+    return len(digest) == size and base64.b64encode(digest).decode("ascii") == encoded
 
 
 @dataclass(frozen=True)
@@ -64,9 +81,7 @@ def inspect_package_lock(data: bytes) -> LockfileReport:
         if not isinstance(version, str) or not 1 <= len(version) <= 128:
             gaps.add("UNKNOWN_RESOLVED_VERSION")
             continue
-        if integrity is not None and (
-            not isinstance(integrity, str) or not _INTEGRITY.fullmatch(integrity)
-        ):
+        if integrity is not None and not _valid_integrity(integrity):
             gaps.add("INVALID_INTEGRITY")
             continue
         if integrity is None:
