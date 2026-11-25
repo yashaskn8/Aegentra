@@ -38,6 +38,17 @@
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; rfc8785 and Python 3.12 unavailable",
         "remote_ci": {
+          "commit": "e97d235991eae779d2d82369dda3aac192197ae1",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45605708657,
+            "frontend": 45605708701,
+            "infra": 45605708700,
+            "security": 45605708662
+          },
+          "note": "CI passed at the previous integrated revision. Shared decoder change requires revalidation."
+        },
+        "prior_remote_ci": {
           "commit": "dc9035cb9b1a4212fe0c0fcf663b9f6164bce406",
           "conclusion": "success",
           "runs": {
@@ -58,7 +69,7 @@
     {
       "id": "SA-1.1-D7-lockfile-integrity",
       "source_section": "4. Analysis, detection and evidence (D7)",
-      "status": "implemented_local_focused_tests_remote_ci_pending",
+      "status": "implemented_ci_passed_at_recorded_commit_current_change_pending",
       "baseline_commit": "dc9035cb9b1a4212fe0c0fcf663b9f6164bce406",
       "acceptance": [
         "Single-token SHA-256/384/512 standard Base64 integrity requires exact decoded digest width and canonical padding",
@@ -83,13 +94,57 @@
         "focused_validation": "43 passed after fix, Python 3.13.5; includes UTF-8 regressions and 23 integrity cases",
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; Python 3.12 and rfc8785 unavailable",
-        "remote_ci": "pending"
+        "remote_ci": {
+          "commit": "e97d235991eae779d2d82369dda3aac192197ae1",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45605708657,
+            "frontend": 45605708701,
+            "infra": 45605708700,
+            "security": 45605708662
+          },
+          "note": "CI passed at the previous integrated revision. Shared decoder change requires revalidation."
+        }
       },
       "research": [
         "https://www.rfc-editor.org/rfc/rfc4648#section-3.5",
         "https://www.w3.org/TR/sri/"
       ],
       "production_qualification": "BLOCKED; no package bytes or external provenance verified"
+    },
+    {
+      "id": "SA-1.1-section-3-unicode-scalars",
+      "source_section": "3. Intake, release identity and enrollment",
+      "status": "implemented_local_focused_tests_remote_ci_pending",
+      "baseline_commit": "e97d235991eae779d2d82369dda3aac192197ae1",
+      "acceptance": [
+        "Reject unpaired surrogate escapes in JSON keys and values at any allowed depth",
+        "Preserve valid paired escapes, literal Unicode and existing decoder limits",
+        "Invalid Unicode lockfile evidence remains INCOMPLETE"
+      ],
+      "code": [
+        "backend/aegentra/bounded_json.py"
+      ],
+      "tests": [
+        "backend/tests/test_json_unicode.py",
+        "backend/tests/test_bounded_json.py",
+        "backend/tests/test_lockfile_integrity.py"
+      ],
+      "evidence": {
+        "git_blob_sha1": {
+          "backend/aegentra/bounded_json.py": "29a087cf4f53668cefd2133d4170777c76ad2288",
+          "backend/tests/test_json_unicode.py": "3b99101323d687e7bbffe41f1af820d7abd66167"
+        },
+        "baseline_regression": "7 failed, 6 passed",
+        "focused_validation": "56 passed, Python 3.13.5",
+        "compileall": "passed",
+        "full_python_3_12_suite": "not locally executed; Python 3.12 and rfc8785 unavailable",
+        "remote_ci": "pending"
+      },
+      "research": [
+        "https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.2"
+      ],
+      "production_qualification": "BLOCKED; independent gates not satisfied"
     }
   ]
 }

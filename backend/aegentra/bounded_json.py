@@ -3,8 +3,12 @@ from __future__ import annotations
 
 import json
 import math
+import re
 
 from aegentra.intake import MAX_TOTAL_BYTES
+
+
+_SURROGATE = re.compile(r"[\ud800-\udfff]")
 
 
 class ManifestError(ValueError):
@@ -28,7 +32,7 @@ def strict_json(data: bytes, *, max_bytes: int = MAX_TOTAL_BYTES) -> object:
     try:
         # Passing bytes directly lets json.loads auto-detect UTF-16/32 and
         # strip a BOM. SA-1.1 requires one UTF-8 wire representation.
-        return json.loads(
+        value = json.loads(
             data.decode("utf-8", errors="strict"),
             parse_constant=lambda value: (_ for _ in ()).throw(
                 ManifestError("nonstandard JSON constant")
@@ -36,10 +40,26 @@ def strict_json(data: bytes, *, max_bytes: int = MAX_TOTAL_BYTES) -> object:
             object_pairs_hook=_reject_duplicate_keys,
             parse_float=_finite_float,
         )
+        _check_unicode(value)
+        return value
     except ManifestError:
         raise
     except (ValueError, RecursionError) as exc:
         raise ManifestError("invalid JSON") from exc
+
+
+def _check_unicode(value: object) -> None:
+    """Reject unpaired surrogate escapes after decoding; valid pairs survive."""
+    if isinstance(value, str):
+        if _SURROGATE.search(value):
+            raise ManifestError("invalid Unicode in JSON string")
+    elif isinstance(value, list):
+        for item in value:
+            _check_unicode(item)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _check_unicode(key)
+            _check_unicode(item)
 
 
 def _finite_float(raw: str) -> float:

@@ -44,3 +44,16 @@ verified by this inspector. Multi-token SRI and other unsupported forms
 remain incomplete. See [RFC 4648 §3.5](https://www.rfc-editor.org/rfc/rfc4648#section-3.5)
 and [W3C SRI](https://www.w3.org/TR/sri/). This is metadata validation,
 not artifact provenance, semantic safety, or production qualification.
+
+## Unicode scalar validation
+
+Strict UTF-8 transport decoding does not reject unpaired surrogate code points
+represented by JSON escapes. After the bounded JSON parse, the shared decoder
+checks every string value and property name, including nested arrays and
+objects, and rejects unpaired surrogates as invalid Unicode. Valid paired
+escapes and literal Unicode remain unchanged; no normalization is introduced.
+This enforces the relevant Unicode requirement of RFC 8785 §3.2.2.2 without
+changing canonical serialization, signed artifacts or authorization behavior.
+The additional walk is linear in the bounded decoded input; existing byte and
+depth limits remain in force. Full canonicalization and independent production
+qualification remain separate requirements.
