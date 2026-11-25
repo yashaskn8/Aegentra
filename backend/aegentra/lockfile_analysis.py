@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from aegentra.content_manifest import ManifestError, strict_json
+from aegentra.bounded_json import ManifestError, strict_json
 
 MAX_LOCK_BYTES = 10 * 1024 * 1024
 MAX_PACKAGES = 2_000

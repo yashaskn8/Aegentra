@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "architecture": {
+    "name": "SentinelAI SA-1.1",
+    "revision": "2026-11-20",
+    "source": "SentinelAI_SA11_Master_Architecture.pdf"
+  },
+  "scope": "Incremental traceability; not a complete PDF compliance ledger.",
+  "requirements": [
+    {
+      "id": "SA-1.1-section-3-utf8",
+      "source_section": "3. Intake, release identity and enrollment",
+      "status": "implemented_local_focused_tests_remote_ci_pending",
+      "baseline_commit": "cef6dabd6c867fb20845e629469f44f5bfc9beb8",
+      "acceptance": [
+        "Reject non-UTF-8 and malformed UTF-8 JSON before schema validation",
+        "Preserve bounded depth, size, duplicate-key and numeric checks",
+        "Lockfile input with invalid encoding reports INCOMPLETE",
+        "Retain content-manifest parser and exception import compatibility"
+      ],
+      "code": [
+        "backend/aegentra/bounded_json.py",
+        "backend/aegentra/content_manifest.py",
+        "backend/aegentra/lockfile_analysis.py"
+      ],
+      "tests": [
+        "backend/tests/test_bounded_json.py"
+      ],
+      "evidence": {
+        "git_blob_sha1": {
+          "backend/aegentra/bounded_json.py": "e5fea8226280b5e70896ee7f02f2dd6c5e52bab6",
+          "backend/aegentra/content_manifest.py": "f1c7fb59a7e6a0007a98348abbf17423b4767770",
+          "backend/aegentra/lockfile_analysis.py": "abf085ad80c06bc2f67ceac460b5136bf8181b87",
+          "backend/tests/test_bounded_json.py": "4098f63408b9fd8802477092a76bd182d99d8a1e"
+        },
+        "baseline_parser_regression": "8 failed, 8 passed before fix",
+        "focused_validation": "20 passed after fix, Python 3.13.5",
+        "compileall": "passed",
+        "full_python_3_12_suite": "not locally executed; rfc8785 and Python 3.12 unavailable",
+        "remote_ci": "pending"
+      },
+      "research": [
+        "https://www.rfc-editor.org/rfc/rfc8259#section-8.1",
+        "https://docs.python.org/3.12/library/json.html#json.loads"
+      ],
+      "production_qualification": "BLOCKED; independent SA-1.1 gates not satisfied"
+    }
+  ]
+}

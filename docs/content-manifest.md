@@ -20,3 +20,14 @@ a signature, approval, safety verdict or publication credential.
 
 The API remains unchanged. Do not expose untrusted customer analysis in the
 FastAPI process. See security-release-gates.md.
+
+## Strict UTF-8 input boundary
+
+The shared `aegentra.bounded_json` decoder enforces strict UTF-8 before JSON
+schema validation. UTF-16/32, a leading BOM, malformed UTF-8 and raw surrogate
+encodings are rejected. Byte and nesting limits, duplicate-key rejection and
+finite numeric parsing remain in effect. `content_manifest` re-exports the
+existing parser and exception names; the lockfile inspector directly uses the
+same bounded decoder and returns INCOMPLETE on invalid encoding. The canonical
+RFC 8785 output and approval contracts are unchanged. This is an input-validation
+control, not a claim that signed artifacts or production evidence are qualified.
