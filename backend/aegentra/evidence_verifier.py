@@ -53,13 +53,20 @@ def verify_versioned_blob(
 
     hasher = hashlib.sha256()
     total = 0
-    for chunk in reader.chunks(version_id):
-        if not isinstance(chunk, bytes):
-            raise EvidenceMismatch("invalid byte stream")
-        total += len(chunk)
-        if total > expected_length or total > MAX_PART_BYTES:
-            raise EvidenceMismatch("oversized blob")
-        hasher.update(chunk)
+    chunks = iter(reader.chunks(version_id))
+    try:
+        for chunk in chunks:
+            if not isinstance(chunk, bytes):
+                raise EvidenceMismatch("invalid byte stream")
+            total += len(chunk)
+            if total > expected_length or total > MAX_PART_BYTES:
+                raise EvidenceMismatch("oversized blob")
+            hasher.update(chunk)
+    finally:
+        # Do not depend on generator garbage collection to release a reader.
+        close = getattr(chunks, "close", None)
+        if callable(close):
+            close()
     if total != expected_length:
         raise EvidenceMismatch("incomplete blob")
     digest = hasher.hexdigest()

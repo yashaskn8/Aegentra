@@ -31,15 +31,16 @@ class S3VersionReader:
         response = self.client.get_object(
             Bucket=self.bucket, Key=self.key, VersionId=version_id
         )
-        if response.get("VersionId") != version_id:
-            raise EvidenceMismatch("S3 returned an unexpected object version")
-        declared_length = response.get("ContentLength")
-        if not isinstance(declared_length, int) or not 0 < declared_length <= MAX_PART_BYTES:
-            raise EvidenceMismatch("S3 response length unavailable or excessive")
         body = response.get("Body")
-        if body is None:
-            raise EvidenceMismatch("missing S3 body")
         try:
+            if response.get("VersionId") != version_id:
+                raise EvidenceMismatch("S3 returned an unexpected object version")
+            declared_length = response.get("ContentLength")
+            if type(declared_length) is not int or not 0 < declared_length <= MAX_PART_BYTES:
+                raise EvidenceMismatch("S3 response length unavailable or excessive")
+            if body is None:
+                raise EvidenceMismatch("missing S3 body")
             yield from body.iter_chunks(chunk_size=64 * 1024)
         finally:
-            body.close()
+            if body is not None:
+                body.close()

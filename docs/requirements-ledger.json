@@ -170,7 +170,7 @@
     {
       "id": "SA-1.1-section-9-sbom-json-uniqueness",
       "source_section": "9. AWS profiles, supply-chain operations and recovery",
-      "status": "CI PENDING",
+      "status": "implemented_ci_passed_at_recorded_commit",
       "baseline_commit": "ec201f64ec2a60166d1767551872c3a74a3647a2",
       "acceptance": [
         "Reject duplicate object property names in both frontend and infrastructure npm manifests and lockfiles",
@@ -192,12 +192,59 @@
         "focused_validation": "9 test methods passed, including all four duplicate-key subcases, Python 3.13.5",
         "compileall": "passed",
         "full_python_3_12_suite": "not executed locally; native Git DNS unavailable; fixture-only validation",
-        "remote_ci": "pending"
+        "remote_ci": {
+          "commit": "75c3c484a1ccb301ebcb1bde866d808880913f78",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45606689116,
+            "frontend": 45606688968,
+            "infra": 45606688965,
+            "security": 45606688984
+          },
+          "note": "All four workflows succeeded at this exact revision. Not independent production qualification."
+        }
       },
       "research": [
         "https://www.rfc-editor.org/rfc/rfc8259#section-4"
       ],
       "production_qualification": "BLOCKED; unsigned inventory is not independently verified provenance"
+    },
+    {
+      "id": "SA-1.1-section-3-evidence-stream-lifecycle",
+      "source_section": "3. Intake, release identity and enrollment, page 3",
+      "status": "CI PENDING",
+      "baseline_commit": "75c3c484a1ccb301ebcb1bde866d808880913f78",
+      "acceptance": [
+        "Close response bodies on invalid metadata and read failures",
+        "Reject boolean response lengths",
+        "Close closeable iterators after early rejection, preserve plain iterable compatibility",
+        "Retain version and digest checks; no release authorization"
+      ],
+      "code": [
+        "backend/aegentra/evidence_verifier.py",
+        "backend/aegentra/s3_reader.py"
+      ],
+      "tests": [
+        "backend/tests/test_evidence_verifier.py",
+        "backend/tests/test_evidence_stream_lifecycle.py"
+      ],
+      "evidence": {
+        "git_blob_sha1": {
+          "backend/aegentra/evidence_verifier.py": "dc26c979fe0d9b941c9b175cb1a3ddcbd23d93f6",
+          "backend/aegentra/s3_reader.py": "bc47855c010f049f7098ca0f46654d1f6db00bee",
+          "backend/tests/test_evidence_stream_lifecycle.py": "8c2986a6ea0d10f0847bde83844302877976a177"
+        },
+        "baseline_regression": "Original suite 21 passed; new suite 6 failed, 4 passed on original source",
+        "focused_validation": "31 passed; Python 3.13.5, botocore 1.43.18, pydantic 2.13.5; local in-memory streams",
+        "compileall": "passed",
+        "full_python_3_12_suite": "not locally executed; Python 3.12, rfc8785 and ruff unavailable, native Git DNS failed",
+        "remote_ci": "pending"
+      },
+      "research": [
+        "https://docs.aws.amazon.com/botocore/latest/reference/response.html",
+        "https://docs.python.org/3.12/library/contextlib.html"
+      ],
+      "production_qualification": "BLOCKED; no live AWS or independent verifier qualification"
     }
   ]
 }

@@ -23,3 +23,16 @@ Literal `null` identifies a potentially mutable unversioned S3 object and
 must never satisfy the immutable-version requirement. Byte lengths must be
 positive integers, never booleans. These checks do not substitute for
 independent AWS IAM and bucket-versioning qualification.
+
+## Evidence stream ownership and cleanup
+
+The version-pinned adapter closes any returned response body even if the
+version or length metadata is rejected before reading. A boolean length is
+invalid. The byte verifier explicitly closes closeable iterators on exit,
+including early size or type rejection, rather than relying on garbage
+collection. Ordinary non-closeable iterable readers remain compatible.
+A cleanup failure propagates instead of yielding a verified result.
+The tests use actual botocore StreamingBody objects over local in-memory
+streams; they establish neither deployed S3 behavior nor AWS identity
+independence. See the [botocore response reference](https://docs.aws.amazon.com/botocore/latest/reference/response.html)
+and [Python resource cleanup guidance](https://docs.python.org/3.12/library/contextlib.html).
