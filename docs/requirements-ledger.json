@@ -212,7 +212,7 @@
     {
       "id": "SA-1.1-section-3-evidence-stream-lifecycle",
       "source_section": "3. Intake, release identity and enrollment, page 3",
-      "status": "CI PENDING",
+      "status": "implemented_ci_passed_at_recorded_commit",
       "baseline_commit": "75c3c484a1ccb301ebcb1bde866d808880913f78",
       "acceptance": [
         "Close response bodies on invalid metadata and read failures",
@@ -238,7 +238,17 @@
         "focused_validation": "31 passed; Python 3.13.5, botocore 1.43.18, pydantic 2.13.5; local in-memory streams",
         "compileall": "passed",
         "full_python_3_12_suite": "not locally executed; Python 3.12, rfc8785 and ruff unavailable, native Git DNS failed",
-        "remote_ci": "pending"
+        "remote_ci": {
+          "commit": "ae7b5666fa4d04750e16320854a52935dfd23797",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45607410052,
+            "frontend": 45607410416,
+            "infra": 45607410208,
+            "security": 45607410093
+          },
+          "note": "The recorded source and regression blobs match this commit. All four exact-commit workflows concluded successfully."
+        }
       },
       "research": [
         "https://docs.aws.amazon.com/botocore/latest/reference/response.html",

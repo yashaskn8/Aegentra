@@ -62,7 +62,9 @@ Vite's development proxy forwards `/v1` to the local FastAPI service. Frontend a
 
 Read [AGENTS.md](AGENTS.md). Keep changes small, testable, and honest about gaps. The architecture's release authority, witness, protected origin, and offline EC2 workers are **future milestones**, not implemented controls.
 
-See [implementation status](docs/implementation-status.md).
+See [implementation status](docs/implementation-status.md),
+[SA-1.1 traceability](docs/sa11-traceability.md), and the
+[engineering toolchain](docs/engineering-toolchain.md).
 
 ## Native S2 preflight (nonproduction)
 
