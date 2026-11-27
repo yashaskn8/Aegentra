@@ -18,7 +18,7 @@ export default function CaseEvidencePanel({
   const [items, setItems] = useState<Evidence[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const request = useRef<AbortController | null>(null);
 
   async function load(cursor: string | null) {
@@ -79,7 +79,12 @@ export default function CaseEvidencePanel({
     <section aria-label="Scoped case evidence">
       <h4>Linked evidence metadata</h4>
       <p className="workspace-note">Digests are evidence identifiers, not safety or publication approval.</p>
-      {items.length === 0 && !loading && !error && <p className="workspace-note">No evidence linked to this case.</p>}
+      <p className="workspace-note" role="status">
+        {loading ? "Loading linked evidence…" : items.length > 0 ? (
+          <>{items.length} linked evidence {items.length === 1 ? "record" : "records"} loaded.
+            {nextCursor && " More records are available."}</>
+        ) : !error && "No evidence linked to this case."}
+      </p>
       <ul className="case-evidence-list">
         {items.map((evidence) => (
           <li key={evidence.id}>
@@ -96,7 +101,6 @@ export default function CaseEvidencePanel({
           {loading ? "Loading…" : "Load more evidence"}
         </button>
       )}
-      {loading && <p className="workspace-note" aria-live="polite">Loading linked evidence…</p>}
       {error && <p className="workspace-error" role="alert">{error}</p>}
     </section>
   );

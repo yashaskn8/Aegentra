@@ -53,8 +53,11 @@ it("fetches a second metadata page without duplicating the first", async () => {
   vi.stubGlobal("fetch", fetchMock);
   render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={vi.fn()} />);
   await screen.findByText(first.kind);
+  expect(screen.getByRole("status").textContent).toContain("1 linked evidence record loaded. More records are available.");
   fireEvent.click(screen.getByRole("button", { name: "Load more evidence" }));
   await screen.findByText("source-review");
+  expect(screen.getByRole("status").textContent).toContain("2 linked evidence records loaded.");
+  expect(screen.getByRole("status").textContent).not.toContain("More records are available.");
   expect(screen.getAllByText(first.sha256)).toHaveLength(1);
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(String(fetchMock.mock.calls[1][0])).toContain("cursor=opaque-cursor");

@@ -14,6 +14,7 @@ type CaseSummary = {
 
 export default function CasesPanel({ user, assets, onAccessLost }: { user: User; assets: Asset[]; onAccessLost: () => void }) {
   const [cases, setCases] = useState<CaseSummary[]>([]);
+  const [caseListState, setCaseListState] = useState<"loading" | "loaded" | "unavailable">("loading");
   const [assetId, setAssetId] = useState("");
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
@@ -29,6 +30,7 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
       cache: "no-store",
       signal: controller.signal,
     }).then(async (response) => {
+      if (controller.signal.aborted) return;
       if (response.status === 401 || response.status === 403) {
         onAccessLost();
         return;
@@ -36,17 +38,19 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
       if (!response.ok) throw new Error("Could not load assigned cases");
       const value: { items: CaseSummary[]; truncated?: boolean } = await response.json();
       if (!Array.isArray(value.items)) throw new Error("Invalid case response");
+      if (controller.signal.aborted) return;
       setCases(value.items);
       setTruncated(Boolean(value.truncated));
+      setCaseListState("loaded");
     }).catch(() => {
-      if (!controller.signal.aborted) setError("Assigned cases are unavailable.");
+      if (!controller.signal.aborted) setCaseListState("unavailable");
     });
     return () => controller.abort();
   }, []);
 
   async function createCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || !assetId || title.trim().length < 3) return;
+    if (caseListState === "loading" || busy || !assetId || title.trim().length < 3) return;
     setBusy(true);
     setError("");
     try {
@@ -149,7 +153,11 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
     <section className="cases-panel" aria-label="Investigation cases">
       <h3>Assigned investigation cases</h3>
       <p className="workspace-note">Access requires an explicit case membership. Triage and containment requests only record incident workflow intent; they do not stop protected traffic or confirm containment.</p>
-      {cases.length === 0 && <p className="workspace-note">No assigned cases.</p>}
+      {caseListState === "loading" && <p className="workspace-note" role="status">Loading assigned cases…</p>}
+      {caseListState === "unavailable" && <p className="workspace-error" role="alert">Assigned cases are unavailable.</p>}
+      {caseListState === "loaded" && cases.length === 0 && !error && (
+        <p className="workspace-note">No assigned cases.</p>
+      )}
       <ul className="asset-list">
         {cases.map((item) => (
           <li key={item.id}>
@@ -209,7 +217,7 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
             required placeholder="Review a suspicious change"
             autoComplete="off"
           />
-          <button type="submit" disabled={busy || assets.length === 0}>
+          <button type="submit" disabled={caseListState === "loading" || busy || assets.length === 0}>
             {busy ? "Creating…" : "Create case"}
           </button>
         </form>

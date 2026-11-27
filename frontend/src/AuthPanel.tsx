@@ -41,6 +41,7 @@ async function getSession(signal: AbortSignal): Promise<Session> {
 export default function AuthPanel() {
   const [session, setSession] = useState<Session>({ state: "checking" });
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetListState, setAssetListState] = useState<"loading" | "loaded" | "unavailable">("loading");
   const [assetError, setAssetError] = useState("");
   const [slug, setSlug] = useState("");
   const [criticality, setCriticality] = useState("LOW");
@@ -60,6 +61,7 @@ export default function AuthPanel() {
       // Never display an earlier identity's cached data during reauthorization.
       setSession({ state: "checking" });
       setAssets([]);
+      setAssetListState("loading");
       setTruncated(false);
       setAssetError("");
       void getSession(controller.signal)
@@ -90,29 +92,30 @@ export default function AuthPanel() {
 
   useEffect(() => {
     if (session.state !== "authenticated") return;
-    let active = true;
-    void fetch("/v1/assets", { credentials: "same-origin", cache: "no-store" })
+    const controller = new AbortController();
+    void fetch("/v1/assets", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
       .then(async (response) => {
+        if (controller.signal.aborted) return;
         if (response.status === 401 || response.status === 403) {
           recheckSession.current();
-          throw new Error("Asset access changed");
+          return;
         }
         if (!response.ok) throw new Error("Assets unavailable");
         const data: { items: Asset[]; truncated: boolean } = await response.json();
         if (!Array.isArray(data.items)) throw new Error("Invalid asset response");
-        if (active) {
+        if (!controller.signal.aborted) {
           setAssets(data.items);
           setTruncated(Boolean(data.truncated));
-          setAssetError("");
+          setAssetListState("loaded");
         }
       })
-      .catch(() => { if (active) setAssetError("Asset list unavailable."); });
-    return () => { active = false; };
+      .catch(() => { if (!controller.signal.aborted) setAssetListState("unavailable"); });
+    return () => controller.abort();
   }, [session]);
 
   async function addAsset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (session.state !== "authenticated" || busy) return;
+    if (session.state !== "authenticated" || assetListState === "loading" || busy) return;
     setBusy(true);
     setAssetError("");
     const expectedEpoch = sessionEpoch.current;
@@ -194,7 +197,9 @@ export default function AuthPanel() {
             <button type="button" onClick={() => { void signOut(); }} disabled={busy}>Sign out</button>
           </div>
           <h3>Registered assets</h3>
-          {assets.length === 0 && <p className="workspace-note">No assets are currently displayed.</p>}
+          {assetListState === "loading" && <p className="workspace-note" role="status">Loading registered assets…</p>}
+          {assetListState === "unavailable" && <p className="workspace-error" role="alert">Asset list unavailable.</p>}
+          {assetListState === "loaded" && assets.length === 0 && <p className="workspace-note">No assets are currently displayed.</p>}
           <ul className="asset-list">
             {assets.map((asset) => (
               <li key={asset.id}>
@@ -221,7 +226,7 @@ export default function AuthPanel() {
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
               </select>
-              <button disabled={busy} type="submit">{busy ? "Saving…" : "Add asset"}</button>
+              <button disabled={assetListState === "loading" || busy} type="submit">{busy ? "Saving…" : "Add asset"}</button>
             </form>
           )}
           {assetError && <p className="workspace-error" role="alert">{assetError}</p>}
