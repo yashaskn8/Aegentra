@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 from hypothesis import example, given, settings, strategies as st
-from sqlalchemy import delete, insert, update
+from sqlalchemy import delete, event, insert, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.api import create_app
@@ -202,9 +202,20 @@ async def exercise_case_scope(stale_revision: int) -> None:
                 json={"evidence_id": str(ev_a)}, headers=headers,
             )
             assert linked.status_code == 201
-            metadata = await analyst_client.get(
-                f"/v1/cases/{case_id}/evidence/{ev_a}/meta"
-            )
+            metadata_reads: list[str] = []
+
+            def capture_read(_conn, _cursor, statement, _parameters, _context, _executemany):
+                if statement.lstrip().upper().startswith("SELECT"):
+                    if "case_memberships" in statement or "case_evidence" in statement:
+                        metadata_reads.append(statement)
+
+            event.listen(app_engine.sync_engine, "before_cursor_execute", capture_read)
+            try:
+                metadata = await analyst_client.get(f"/v1/cases/{case_id}/evidence/{ev_a}/meta")
+            finally:
+                event.remove(app_engine.sync_engine, "before_cursor_execute", capture_read)
+            assert len(metadata_reads) == 1
+            assert "case_memberships" in metadata_reads[0] and "case_evidence" in metadata_reads[0]
             assert metadata.status_code == 200
             assert metadata.json()["sha256"] == (b"a" * 32).hex()
 

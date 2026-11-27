@@ -11,7 +11,7 @@ import hashlib
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import Select, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -173,15 +173,13 @@ async def link_evidence(
     return {"case_id": str(case_id), "evidence_id": str(evidence_id)}
 
 
-async def evidence_metadata(
-    session: AsyncSession, *, org_id: UUID, identity_id: UUID,
-    case_id: UUID, evidence_id: UUID,
-) -> dict:
-    case = await accessible_case(
-        session, org_id=org_id, identity_id=identity_id, case_id=case_id,
-    )
-    evidence = await session.scalar(
-        select(Evidence)
+def _scoped_evidence(
+    *, org_id: UUID, identity_id: UUID, case_id: UUID,
+) -> Select[Evidence, CaseEvidence]:
+    # The composite case FK binds each link to its case's asset. Read the
+    # membership and evidence in one snapshot so revocation cannot split them.
+    return (
+        select(Evidence, CaseEvidence)
         .join(
             CaseEvidence,
             (CaseEvidence.org_id == Evidence.org_id)
@@ -191,9 +189,23 @@ async def evidence_metadata(
         .where(
             CaseEvidence.org_id == org_id,
             CaseEvidence.case_id == case_id,
-            CaseEvidence.asset_id == case.asset_id,
-            Evidence.id == evidence_id,
+            select(CaseMembership.identity_id).where(
+                CaseMembership.org_id == org_id,
+                CaseMembership.case_id == case_id,
+                CaseMembership.identity_id == identity_id,
+            ).exists(),
         )
+    )
+
+
+async def evidence_metadata(
+    session: AsyncSession, *, org_id: UUID, identity_id: UUID,
+    case_id: UUID, evidence_id: UUID,
+) -> dict:
+    evidence = await session.scalar(
+        _scoped_evidence(org_id=org_id, identity_id=identity_id, case_id=case_id)
+        .with_only_columns(Evidence)
+        .where(Evidence.id == evidence_id)
     )
     if evidence is None:
         raise CaseNotFound("evidence unavailable for case")
@@ -231,23 +243,8 @@ async def list_case_evidence(
     if not 1 <= page_size <= 100:
         raise ValueError("page size outside allowed range")
     query = (
-        select(Evidence, CaseEvidence)
-        .join(
-            CaseEvidence,
-            (CaseEvidence.org_id == Evidence.org_id)
-            & (CaseEvidence.asset_id == Evidence.asset_id)
-            & (CaseEvidence.evidence_id == Evidence.id),
-        )
-        .where(
-            CaseEvidence.org_id == org_id,
-            CaseEvidence.case_id == case_id,
-            CaseEvidence.asset_id == case.asset_id,
-            select(CaseMembership.identity_id).where(
-                CaseMembership.org_id == org_id,
-                CaseMembership.case_id == case_id,
-                CaseMembership.identity_id == identity_id,
-            ).exists(),
-        )
+        _scoped_evidence(org_id=org_id, identity_id=identity_id, case_id=case_id)
+        .where(CaseEvidence.asset_id == case.asset_id)
         .order_by(CaseEvidence.linked_at, CaseEvidence.evidence_id)
         .limit(page_size + 1)
     )

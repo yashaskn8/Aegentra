@@ -11,6 +11,12 @@ the timestamp and UUID together. The UUID resolves ties, including cursors
 created before the migration. Every request still checks membership first
 and joins evidence by organization, asset and evidence ID under RLS.
 
+The single-record metadata endpoint reads membership and linked evidence in
+one SQL statement. The native integration test counted two case-scope reads
+before this change and one after it for the same authorized synthetic request.
+The measurement excludes session lookup and transaction setup. Both paged
+and single-record reads use the same membership predicate.
+
 PostgreSQL 17.11 on native Windows ran the same 100,000-link fixture under
 the restricted CI application role. The page returns 25 items and checks one
 additional row. Values are the median of five runs after one warm-up, using
