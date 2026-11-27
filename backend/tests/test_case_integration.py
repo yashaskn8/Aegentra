@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
@@ -270,6 +271,38 @@ async def exercise_case_scope(stale_revision: int) -> None:
             pages = first_page.json()["items"] + second_page.json()["items"]
             assert [item["id"] for item in pages] == [str(i) for i in sorted((ev_a, ev_after_triage))]
             assert [datetime.fromisoformat(item["linked_at"]) for item in pages] == [tied_at, tied_at]
+            export_path = f"/v1/cases/{case_id}/exports"
+            export_scope = {"projection": "evidence_metadata"}
+            assert (await analyst_client.get(export_path)).status_code == 422
+            assert (await analyst_client.get(export_path, params={"projection": "source"})).status_code == 422
+            exported = await analyst_client.get(export_path, params=export_scope)
+            assert exported.status_code == 200, exported.text
+            assert exported.headers["cache-control"] == "no-store"
+            assert exported.headers["content-type"] == "application/x-ndjson"
+            assert exported.headers["content-disposition"] == 'attachment; filename="case-evidence-metadata.ndjson"'
+            assert exported.headers["x-content-type-options"] == "nosniff"
+            assert [json.loads(line) for line in exported.text.splitlines()] == [
+                *({"type": "evidence", **item} for item in pages),
+                {"type": "end", "next_cursor": None},
+            ]
+            with (
+                patch("aegentra.auth_routes.EVIDENCE_EXPORT_BATCH_SIZE", 1),
+                patch("aegentra.auth_routes.EVIDENCE_EXPORT_MAX_ROWS", 1),
+            ):
+                bounded = await analyst_client.get(export_path, params=export_scope)
+            assert bounded.status_code == 200
+            first_export_row, continuation = [json.loads(line) for line in bounded.text.splitlines()]
+            assert first_export_row == {"type": "evidence", **pages[0]}
+            assert continuation == {"type": "end", "next_cursor": first_page.json()["next_cursor"]}
+            resumed = await analyst_client.get(
+                export_path, params={**export_scope, "cursor": continuation["next_cursor"]},
+            )
+            assert [json.loads(line) for line in resumed.text.splitlines()] == [
+                {"type": "evidence", **pages[1]}, {"type": "end", "next_cursor": None},
+            ]
+            assert (await analyst_client.get(
+                export_path, params={**export_scope, "cursor": "invalid"},
+            )).status_code == 422
             timeline = f"/v1/cases/{case_id}/timeline"
             assert (await analyst_client.get("/openapi.json")).status_code == 404
             first = await analyst_client.get(timeline, params={"page_size": 2})
@@ -331,6 +364,7 @@ async def exercise_case_scope(stale_revision: int) -> None:
                 assert (await viewer_client.get(
                     f"/v1/cases/{case_id}/evidence/{ev_a}/meta"
                 )).status_code == 404
+                assert (await viewer_client.get(export_path, params=export_scope)).status_code == 404
                 viewer_headers = {
                     "Origin": settings.origin,
                     "X-CSRF-Token": viewer_me["csrf_token"],
@@ -350,13 +384,36 @@ async def exercise_case_scope(stale_revision: int) -> None:
                     ))
                 viewer_page = await viewer_client.get(timeline, params={"page_size": 1})
                 assert viewer_page.status_code == 200 and viewer_page.json()["next_cursor"]
-                async with admin.begin() as conn:
-                    await conn.execute(delete(CaseMembership).where(
-                        CaseMembership.org_id == org, CaseMembership.case_id == UUID(case_id),
-                        CaseMembership.identity_id == viewer,
-                    ))
+
+                async def revoke_after_first_body(scope, receive, send):
+                    first_body = True
+
+                    async def observe(message):
+                        nonlocal first_body
+                        await send(message)
+                        if first_body and message["type"] == "http.response.body" and message.get("body"):
+                            first_body = False
+                            async with admin.begin() as conn:
+                                await conn.execute(delete(CaseMembership).where(
+                                    CaseMembership.org_id == org, CaseMembership.case_id == UUID(case_id),
+                                    CaseMembership.identity_id == viewer,
+                                ))
+
+                    await api(scope, receive, observe)
+
+                with patch("aegentra.auth_routes.EVIDENCE_EXPORT_BATCH_SIZE", 1):
+                    async with httpx.AsyncClient(
+                        transport=httpx.ASGITransport(app=revoke_after_first_body),
+                        base_url="https://aegentra.test", cookies=viewer_client.cookies,
+                    ) as interrupted_client:
+                        interrupted = await interrupted_client.get(export_path, params=export_scope)
+                assert interrupted.status_code == 200
+                assert [json.loads(line) for line in interrupted.text.splitlines()] == [
+                    {"type": "evidence", **pages[0]},
+                ]
                 revoked = await viewer_client.get(timeline, params={"cursor": viewer_page.json()["next_cursor"]})
                 assert revoked.status_code == 404 and revoked.headers["cache-control"] == "no-store"
+                assert (await viewer_client.get(export_path, params=export_scope)).status_code == 404
 
             async with admin.begin() as conn:
                 await conn.execute(delete(CaseEvidence).where(

@@ -242,6 +242,11 @@ async def list_case_evidence(
             CaseEvidence.org_id == org_id,
             CaseEvidence.case_id == case_id,
             CaseEvidence.asset_id == case.asset_id,
+            select(CaseMembership.identity_id).where(
+                CaseMembership.org_id == org_id,
+                CaseMembership.case_id == case_id,
+                CaseMembership.identity_id == identity_id,
+            ).exists(),
         )
         .order_by(CaseEvidence.linked_at, CaseEvidence.evidence_id)
         .limit(page_size + 1)
@@ -252,6 +257,9 @@ async def list_case_evidence(
             tuple_(CaseEvidence.linked_at, CaseEvidence.evidence_id) > tuple_(last_time, last_id)
         )
     rows = list((await session.execute(query)).all())
+    if not rows:
+        # An empty authorized page and a grant revoked during the read differ.
+        await accessible_case(session, org_id=org_id, identity_id=identity_id, case_id=case_id)
     page = rows[:page_size]
     next_cursor = None
     if len(rows) > page_size:

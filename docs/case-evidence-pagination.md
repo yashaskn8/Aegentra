@@ -40,3 +40,26 @@ psql -X -v row_cursor=false -f scripts/benchmark_case_evidence.sql
 psql -X -v row_cursor=false -f scripts/benchmark_case_evidence.sql
 psql -X -v row_cursor=true -f scripts/benchmark_case_evidence.sql
 ```
+## Streaming metadata export
+
+`GET /v1/cases/{case_id}/exports?projection=evidence_metadata` uses the indexed
+case reader and the current browser session. The exact media type is
+`application/x-ndjson`. The body consists of `evidence` records containing
+the same fields as the paginated view and an `end` record with `next_cursor`.
+Pass a non-null cursor back through the same authenticated route to continue.
+An empty case returns only the end record. Clients must treat a response
+without an end record as incomplete, even if the HTTP status is 200.
+
+Each response reads up to 100 rows in batches of at most 25. The stream
+reauthenticates the browser session and rechecks current case membership on
+each subsequent batch. The metadata query itself filters by membership,
+including when grants change after the initial case lookup. Transactions
+close before yielding rows. A revocation or failed required dependency
+interrupts subsequent batches. Already sent rows and rows admitted by the
+current query may remain in transit. The export uses live keyset pagination
+and is subject to concurrent changes to the case.
+
+The API exports linked metadata only. The response is an attachment with
+`no-store` and `nosniff`. Native PostgreSQL tests exercise projection
+selection, cursor continuation, unauthorized access and revocation during
+streaming. This contract is part of SA11-P08-036 in the atomic register.

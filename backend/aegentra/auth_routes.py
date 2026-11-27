@@ -2,14 +2,16 @@
 from __future__ import annotations
 
 import hmac
-from typing import Annotated
+import json
+from collections.abc import AsyncIterator
+from typing import Annotated, Literal
 from uuid import UUID
 from pydantic import ValidationError
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from aegentra.asset_store import get_asset, list_assets
@@ -42,6 +44,9 @@ LOGIN_COOKIE = "__Host-aegentra-login"
 TimelineCursor = Annotated[str | None, Query(min_length=1, max_length=TIMELINE_CURSOR_LIMIT,
                                            pattern=r"^[A-Za-z0-9_-]+$")]
 TimelinePageSize = Annotated[int, Query(ge=1, le=100)]
+EvidenceCursor = Annotated[str | None, Query(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9_-]+$")]
+EVIDENCE_EXPORT_BATCH_SIZE = 25
+EVIDENCE_EXPORT_MAX_ROWS = 100
 
 
 class AssetInput(BaseModel):
@@ -322,8 +327,7 @@ def enable_auth(
     @router.get("/cases/{case_id}/evidence", response_model=EvidencePage)
     async def case_evidence_list(
         case_id: UUID, response: Response,
-        cursor: str | None = Query(default=None, min_length=1, max_length=256,
-                                   pattern=r"^[A-Za-z0-9_-]+$"),
+        cursor: EvidenceCursor = None,
         page_size: int = Query(default=50, ge=1, le=100),
         user: Principal = Depends(principal),
     ) -> dict:
@@ -339,6 +343,62 @@ def enable_auth(
             raise HTTPException(status_code=422, detail="invalid evidence cursor") from exc
         response.headers["Cache-Control"] = "no-store"
         return result
+
+    @router.get("/cases/{case_id}/exports", response_class=StreamingResponse)
+    async def export_case_evidence(
+        case_id: UUID, request: Request, projection: Literal["evidence_metadata"],
+        cursor: EvidenceCursor = None, user: Principal = Depends(principal),
+    ) -> StreamingResponse:
+        no_store = {"Cache-Control": "no-store"}
+
+        async def read_page(reader: Principal, after: str | None, size: int) -> EvidencePage:
+            async with organization_session(sessions, reader.org_id) as session:
+                result = await list_case_evidence(
+                    session, org_id=reader.org_id, identity_id=reader.identity_id,
+                    case_id=case_id, cursor=after, page_size=size,
+                )
+            return EvidencePage.model_validate(result)
+
+        try:
+            first = await read_page(user, cursor, EVIDENCE_EXPORT_BATCH_SIZE)
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="case unavailable", headers=no_store) from exc
+        except (SQLAlchemyError, ValidationError) as exc:
+            raise HTTPException(status_code=503, detail="evidence unavailable", headers=no_store) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="invalid evidence cursor", headers=no_store) from exc
+
+        async def body() -> AsyncIterator[bytes]:
+            page = first
+            remaining = EVIDENCE_EXPORT_MAX_ROWS
+            while True:
+                if page.items:
+                    yield "".join(
+                        json.dumps({"type": "evidence", **item.model_dump(mode="json")}) + "\n"
+                        for item in page.items
+                    ).encode("utf-8")
+                remaining -= len(page.items)
+                after = page.next_cursor
+                if after is None or remaining == 0:
+                    yield (json.dumps({"type": "end", "next_cursor": after}) + "\n").encode("utf-8")
+                    return
+                try:
+                    reader = await store.authenticate(request.cookies.get(SESSION_COOKIE))
+                    if reader.identity_id != user.identity_id or reader.org_id != user.org_id:
+                        return
+                    page = await read_page(reader, after, min(remaining, EVIDENCE_EXPORT_BATCH_SIZE))
+                except (AuthenticationError, CaseNotFound, SQLAlchemyError, ValueError):
+                    # Headers are already committed. A client must require the end record.
+                    return
+
+        return StreamingResponse(
+            body(), media_type="application/x-ndjson",
+            headers={
+                **no_store,
+                "Content-Disposition": 'attachment; filename="case-evidence-metadata.ndjson"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @router.post("/cases/{case_id}/evidence", status_code=201, response_model=EvidenceLink)
     async def add_case_evidence(
