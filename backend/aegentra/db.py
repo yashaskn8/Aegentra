@@ -4,7 +4,7 @@ from __future__ import annotations
 from uuid import UUID, uuid4
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, LargeBinary, String, Uuid, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -254,6 +254,7 @@ class CaseEvidence(Base):
     linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
+        Index("ix_case_evidence_page", "org_id", "asset_id", "case_id", "linked_at", "evidence_id"),
         ForeignKeyConstraint(
             ["org_id", "asset_id", "case_id"],
             ["investigation_cases.org_id", "investigation_cases.asset_id", "investigation_cases.id"],

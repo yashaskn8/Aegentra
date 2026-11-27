@@ -5,11 +5,12 @@ import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from sqlalchemy import delete, insert
+from hypothesis import example, given, settings, strategies as st
+from sqlalchemy import delete, insert, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from aegentra.api import create_app
@@ -48,11 +49,14 @@ async def sign_in(client: httpx.AsyncClient, code: str) -> dict:
     not (os.getenv("AEGENTRA_TEST_ADMIN_URL") and os.getenv("AEGENTRA_TEST_APP_URL")),
     reason="native PostgreSQL integration URLs not provided",
 )
-def test_cases_are_membership_scoped_and_evidence_is_asset_bound() -> None:
-    asyncio.run(exercise_case_scope())
+@settings(max_examples=3, derandomize=True, deadline=None)
+@given(stale_revision=st.sampled_from([3, 4, 100]))
+@example(stale_revision=1)
+def test_cases_are_membership_scoped_and_evidence_is_asset_bound(stale_revision: int) -> None:
+    asyncio.run(exercise_case_scope(stale_revision))
 
 
-async def exercise_case_scope() -> None:
+async def exercise_case_scope(stale_revision: int) -> None:
     admin = make_engine(os.environ["AEGENTRA_TEST_ADMIN_URL"])
     app_engine = make_engine(os.environ["AEGENTRA_TEST_APP_URL"])
     org, other_org = uuid4(), uuid4()
@@ -217,7 +221,7 @@ async def exercise_case_scope() -> None:
             assert response.json()["revision"] == 2
             stale = await analyst_client.post(
                 f"/v1/cases/{case_id}/transition",
-                json={"status": "CONTAINMENT_REQUESTED", "expected_revision": 1},
+                json={"status": "CONTAINMENT_REQUESTED", "expected_revision": stale_revision},
                 headers=headers,
             )
             assert stale.status_code == 409
@@ -238,6 +242,12 @@ async def exercise_case_scope() -> None:
                 f"/v1/cases/{case_id}/evidence/{ev_after_triage}/meta"
             )).status_code == 200
 
+            tied_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            async with admin.begin() as conn:
+                await conn.execute(
+                    update(CaseEvidence).where(CaseEvidence.org_id == org, CaseEvidence.case_id == UUID(case_id))
+                    .values(linked_at=tied_at)
+                )
             first_page = await analyst_client.get(
                 f"/v1/cases/{case_id}/evidence", params={"page_size": 1}
             )
@@ -250,10 +260,9 @@ async def exercise_case_scope() -> None:
             )
             assert second_page.status_code == 200, second_page.text
             assert second_page.json()["next_cursor"] is None
-            assert {
-                first_page.json()["items"][0]["id"],
-                second_page.json()["items"][0]["id"],
-            } == {str(ev_a), str(ev_after_triage)}
+            pages = first_page.json()["items"] + second_page.json()["items"]
+            assert [item["id"] for item in pages] == [str(i) for i in sorted((ev_a, ev_after_triage))]
+            assert [datetime.fromisoformat(item["linked_at"]) for item in pages] == [tied_at, tied_at]
             assert (await analyst_client.get(
                 f"/v1/cases/{case_id}/evidence",
                 params={"cursor": first_page.json()["next_cursor"] + "garbage"},

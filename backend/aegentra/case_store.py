@@ -11,7 +11,7 @@ import hashlib
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -248,13 +248,9 @@ async def list_case_evidence(
     )
     if cursor is not None:
         last_time, last_id = _decode_evidence_cursor(cursor, case_id)
-        query = query.where(or_(
-            CaseEvidence.linked_at > last_time,
-            and_(
-                CaseEvidence.linked_at == last_time,
-                CaseEvidence.evidence_id > last_id,
-            ),
-        ))
+        query = query.where(
+            tuple_(CaseEvidence.linked_at, CaseEvidence.evidence_id) > tuple_(last_time, last_id)
+        )
     rows = list((await session.execute(query)).all())
     page = rows[:page_size]
     next_cursor = None
