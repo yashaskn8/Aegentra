@@ -255,6 +255,41 @@
         "https://docs.python.org/3.12/library/contextlib.html"
       ],
       "production_qualification": "BLOCKED; no live AWS or independent verifier qualification"
+    },
+    {
+      "id": "SA-1.1-D9-case-timeline",
+      "source_section": "4 and 6–8. Authorized evidence, backend contracts, PostgreSQL and console, pp. 5 and 8–11",
+      "status": "implemented_locally_verified",
+      "baseline_commit": "a61bd2426cc5514c87121dda3875f117bd62b432",
+      "acceptance": [
+        "Project the retained case audit ledger through case membership and current same-asset evidence links on each page",
+        "Expose typed case and evidence responses without serving a public schema or internal audit payloads",
+        "Bind stable timestamp and event identifier cursors to the organization, case and optional evidence reference",
+        "Display the authorized timeline with keyboard navigation, page announcements, retry and case-scope invalidation",
+        "Keep workspace requests distinct from independently recorded containment and retain the existing incident custody role"
+      ],
+      "code": [
+        "backend/aegentra/case_contracts.py",
+        "backend/aegentra/case_timeline.py",
+        "backend/aegentra/auth_routes.py",
+        "backend/migrations/versions/0024_case_timeline.py",
+        "frontend/src/CaseTimelinePanel.tsx",
+        "frontend/src/CasesPanel.tsx"
+      ],
+      "tests": [
+        "backend/tests/test_case_integration.py",
+        "backend/tests/test_case_timeline.py",
+        "backend/tests/test_incident_containment_integration.py",
+        "frontend/src/CasesPanel.test.tsx",
+        "frontend/e2e/console.pw.ts"
+      ],
+      "evidence": {
+        "baseline_regression": "The case timeline returned 404 before the route was implemented. The case workspace had no timeline control.",
+        "local_python": "654 passed with native PostgreSQL, including 120 passing generated examples for the new timeline properties.",
+        "migration": "Native PostgreSQL 17.11 upgrade, downgrade and re-upgrade at 0024_case_timeline.",
+        "scope": "Retained case audit records with verifiable coordinates. Unattributable legacy records are excluded."
+      },
+      "production_qualification": "BLOCKED; independent D9 P0 verification, retention controls and Matrix C oracles remain outstanding"
     }
   ]
 }
