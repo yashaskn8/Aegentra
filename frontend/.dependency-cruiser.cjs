@@ -11,16 +11,16 @@ module.exports = {
       to: { path: testPath },
     },
     {
-      name: "case-evidence-depends-on-no-workspace-or-operations-panel",
+      name: "case-views-depend-on-no-workspace-or-operations-panel",
       severity: "error",
-      from: { path: "^src/CaseEvidencePanel\\.tsx$" },
+      from: { path: "^src/Case(Evidence|Timeline)Panel\\.tsx$" },
       to: { path: "^src/(main|App|AuthPanel|CasesPanel|OperationsPanel)\\.tsx$" },
     },
     {
       name: "operations-does-not-import-case-or-workspace-components",
       severity: "error",
       from: { path: "^src/OperationsPanel\\.tsx$" },
-      to: { path: "^src/(main|App|AuthPanel|CasesPanel|CaseEvidencePanel)\\.tsx$" },
+      to: { path: "^src/(main|App|AuthPanel|CasesPanel|CaseEvidencePanel|CaseTimelinePanel)\\.tsx$" },
     },
   ],
   options: {

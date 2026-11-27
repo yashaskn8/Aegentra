@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const ASSET = "3cf79a38-7a1f-49f7-962d-b83a75de651e";
 const CASE = "5cc2c064-b670-4313-8bef-e40a4f39a92d";
+const OTHER_CASE = "50497499-a5a6-46de-922a-80f6791759e9";
 
 async function configuredPage(page: import("@playwright/test").Page, status: () => number, role = "ANALYST") {
   await page.route("**/v1/health/live", (route) =>
@@ -77,4 +78,62 @@ test("injected-looking case titles and evidence remain plain text", async ({ pag
   await expect(page.locator("img")).toHaveCount(0);
   await expect(page.locator("svg")).toHaveCount(0);
   expect(await page.evaluate(() => "pwned" in window)).toBe(false);
+});
+
+test("timeline scopes delayed pages, keyboard pagination, retry and empty states", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configuredPage(page, () => 200, "VIEWER");
+  await page.route("**/v1/cases", (route) => route.fulfill({ json: { items: [
+    { id: CASE, asset_id: ASSET, title: "First case", status: "OPEN", revision: 1 },
+    { id: OTHER_CASE, asset_id: ASSET, title: "Second case", status: "OPEN", revision: 1 },
+  ], truncated: false } }));
+  let completeLatePage!: () => void;
+  const latePage = new Promise<void>((resolve) => { completeLatePage = resolve; });
+  let releaseFirstPage!: () => void;
+  const firstPage = new Promise<void>((resolve) => { releaseFirstPage = resolve; });
+  let pageReads = 0;
+  let secondUnavailable = true;
+  const occurred_at = "2026-01-01T00:00:00Z";
+  await page.route(`**/v1/cases/${CASE}/timeline?*`, async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    if (cursor === null) {
+      await firstPage;
+      await route.fulfill({ json: { items: [{ id: "a".repeat(64), occurred_at, kind: "CASE_CREATED",
+        evidence_id: null, revision: null }], next_cursor: "fixture-next" } });
+    } else {
+      expect(cursor).toBe("fixture-next");
+      if (++pageReads === 2) await latePage;
+      await route.fulfill({ json: { items: [{ id: "b".repeat(64), occurred_at, kind: "INCIDENT_TRIAGED",
+        evidence_id: null, revision: 2 }], next_cursor: null } });
+    }
+  });
+  await page.route(`**/v1/cases/${OTHER_CASE}/timeline?*`, (route) => secondUnavailable
+    ? route.fulfill({ status: 503, json: { detail: "fixture unavailable" } })
+    : route.fulfill({ json: { items: [], next_cursor: null } }));
+
+  await page.goto("/");
+  const firstCase = page.getByRole("listitem").filter({ hasText: "First case" });
+  const secondCase = page.getByRole("listitem").filter({ hasText: "Second case" });
+  const region = page.getByRole("region", { name: "Case timeline" });
+  await firstCase.getByRole("button", { name: "View timeline" }).press("Enter");
+  await expect(region.getByRole("status")).toHaveText("Loading timeline events…");
+  releaseFirstPage();
+  await expect(region.getByText("Case created")).toBeVisible();
+  await region.getByRole("button", { name: "Load more timeline events" }).press("Enter");
+  await expect(region.getByRole("status")).toHaveText("2 timeline events loaded.");
+  await expect(region.getByRole("status")).toBeFocused();
+
+  await firstCase.getByRole("button", { name: "Hide timeline" }).click();
+  await firstCase.getByRole("button", { name: "View timeline" }).click();
+  await region.getByRole("button", { name: "Load more timeline events" }).click();
+  await expect.poll(() => pageReads).toBe(2);
+  await secondCase.getByRole("button", { name: "View timeline" }).click();
+  await expect(region.getByRole("alert")).toHaveText("Some timeline records are temporarily unavailable.");
+  completeLatePage();
+  secondUnavailable = false;
+  await region.getByRole("button", { name: "Retry timeline" }).press("Enter");
+  await expect(region.getByRole("status")).toHaveText("No timeline events are available.");
+  await expect(page.getByText("Incident triaged")).toHaveCount(0);
+  await expect(page.getByText("Case created")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

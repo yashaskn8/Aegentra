@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import CaseEvidencePanel from "./CaseEvidencePanel";
+import CaseTimelinePanel from "./CaseTimelinePanel";
 
 type Asset = { id: string; slug: string };
 type User = { role: string; csrf_token: string };
+type CaseView = "evidence" | "timeline";
 type CaseSummary = {
   id: string;
   asset_id: string;
@@ -21,7 +23,7 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
   const [busy, setBusy] = useState(false);
   const [transitioning, setTransitioning] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<{ caseId: string; view: CaseView } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -47,6 +49,16 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
     });
     return () => controller.abort();
   }, []);
+
+  function toggleView(caseId: string, view: CaseView) {
+    setSelection((current) => current?.caseId === caseId && current.view === view ? null : { caseId, view });
+  }
+
+  function removeUnavailableCase(caseId: string) {
+    setCases((current) => current.filter((record) => record.id !== caseId));
+    setSelection((current) => current?.caseId === caseId ? null : current);
+    setError("This case is no longer assigned to your identity.");
+  }
 
   async function createCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -111,19 +123,17 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
         // A stale revision must not leave actionable old case snapshots.
         setCases([]);
         setTruncated(false);
+        setSelection(null);
       }
       if (response.status === 404) {
-        setCases((current) => current.filter((record) => record.id !== item.id));
+        removeUnavailableCase(item.id);
+        return;
       }
       if (!response.ok) {
         throw new Error(
           response.status === 409 || response.status === 412
             ? "The incident changed. Refresh this page before trying again."
-            : response.status === 403
-              ? "Incident transition is not permitted for your identity."
-              : response.status === 404
-                ? "This incident is no longer assigned to you."
-                : "Incident transition could not be recorded.",
+            : "Incident transition could not be recorded.",
         );
       }
       const changed: unknown = await response.json();
@@ -159,17 +169,24 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
         <p className="workspace-note">No assigned cases.</p>
       )}
       <ul className="asset-list">
-        {cases.map((item) => (
+        {cases.map((item) => {
+          const view = selection?.caseId === item.id ? selection.view : null;
+          return (
           <li key={item.id}>
             <div className="case-information">
               <span>{item.title}</span>
               <small>{item.status} · revision {item.revision}</small>
             </div>
             <div className="case-actions">
-              <button type="button" aria-expanded={selectedCaseId === item.id}
-                aria-controls={`evidence-${item.id}`}
-                onClick={() => setSelectedCaseId((selected) => selected === item.id ? null : item.id)}>
-                {selectedCaseId === item.id ? "Hide evidence" : "View evidence"}
+              <button type="button" aria-expanded={view === "evidence"}
+                aria-controls={view === "evidence" ? `case-workspace-${item.id}` : undefined}
+                onClick={() => toggleView(item.id, "evidence")}>
+                {view === "evidence" ? "Hide evidence" : "View evidence"}
+              </button>
+              <button type="button" aria-expanded={view === "timeline"}
+                aria-controls={view === "timeline" ? `case-workspace-${item.id}` : undefined}
+                onClick={() => toggleView(item.id, "timeline")}>
+                {view === "timeline" ? "Hide timeline" : "View timeline"}
               </button>
             </div>
             {(user.role === "ANALYST" || user.role === "ADMIN") && (
@@ -188,13 +205,20 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
                 )}
               </div>
             )}
-            {selectedCaseId === item.id && (
-              <div id={`evidence-${item.id}`} className="case-evidence-section">
-                <CaseEvidencePanel caseId={item.id} onAccessLost={onAccessLost} />
+            {view !== null && (
+              <div id={`case-workspace-${item.id}`} className="case-evidence-section">
+                {view === "timeline" ? (
+                  <CaseTimelinePanel key={item.revision} caseId={item.id} onAccessLost={onAccessLost}
+                    onCaseUnavailable={() => removeUnavailableCase(item.id)} />
+                ) : (
+                  <CaseEvidencePanel caseId={item.id} onAccessLost={onAccessLost}
+                    onCaseUnavailable={() => removeUnavailableCase(item.id)} />
+                )}
               </div>
             )}
           </li>
-        ))}
+          );
+        })}
       </ul>
       {truncated && <p className="workspace-note">Showing the first 100 assigned cases.</p>}
       {(user.role === "ANALYST" || user.role === "ADMIN") && (

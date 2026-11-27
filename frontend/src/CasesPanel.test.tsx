@@ -48,3 +48,26 @@ it("keeps the case list error visible when a new case can still be created", asy
   expect(await screen.findByText(created.title)).toBeTruthy();
   expect(screen.getByRole("alert")).toHaveProperty("textContent", "Assigned cases are unavailable.");
 });
+
+it("clears the case workspace when a timeline page loses its membership", async () => {
+  const item = { id: "case-a", asset_id: "asset-1", title: "First investigation", status: "OPEN", revision: 1 };
+  const next = "synthetic-next";
+  const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ items: [item] }))
+    .mockResolvedValueOnce(Response.json({ items: [{
+      id: "a".repeat(64), occurred_at: "2026-01-01T00:00:00Z", kind: "CASE_CREATED",
+      evidence_id: null, revision: null,
+    }], next_cursor: next }))
+    .mockResolvedValueOnce(Response.json({}, { status: 404 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const onAccessLost = vi.fn();
+  render(<CasesPanel user={{ role: "ANALYST", csrf_token: "synthetic" }} assets={[]} onAccessLost={onAccessLost} />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "View timeline" }));
+  expect(await screen.findByText("Case created")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Load more timeline events" }));
+  expect(await screen.findByRole("alert")).toHaveProperty("textContent", "This case is no longer assigned to your identity.");
+  expect(screen.queryByText("First investigation")).toBeNull();
+  expect(screen.queryByRole("region", { name: "Case timeline" })).toBeNull();
+  expect(onAccessLost).not.toHaveBeenCalled();
+  expect(fetchMock.mock.calls[2][0]).toContain(`cursor=${next}`);
+});

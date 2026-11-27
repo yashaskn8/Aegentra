@@ -10,10 +10,11 @@ type Evidence = {
 type Page = { items: Evidence[]; next_cursor: string | null };
 
 export default function CaseEvidencePanel({
-  caseId, onAccessLost,
+  caseId, onAccessLost, onCaseUnavailable,
 }: {
   caseId: string;
   onAccessLost: () => void;
+  onCaseUnavailable: () => void;
 }) {
   const [items, setItems] = useState<Evidence[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export default function CaseEvidencePanel({
         setItems([]);
         setNextCursor(null);
         setError("This case is no longer assigned to your identity.");
+        onCaseUnavailable();
         return;
       }
       if (!response.ok) throw new Error("Evidence metadata could not be loaded.");

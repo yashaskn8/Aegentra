@@ -34,7 +34,7 @@ it("renders malicious-looking evidence as inert text without fetching source", a
   vi.stubGlobal("fetch", fetchMock);
   const onAccessLost = vi.fn();
   const { container } = render(
-    <CaseEvidencePanel caseId={CASE_ID} onAccessLost={onAccessLost} />,
+    <CaseEvidencePanel caseId={CASE_ID} onAccessLost={onAccessLost} onCaseUnavailable={vi.fn()} />,
   );
 
   expect(await screen.findByText(first.kind)).toBeTruthy();
@@ -51,7 +51,7 @@ it("fetches a second metadata page without duplicating the first", async () => {
     .mockResolvedValueOnce(json({ items: [first], next_cursor: "opaque-cursor" }))
     .mockResolvedValueOnce(json({ items: [second], next_cursor: null }));
   vi.stubGlobal("fetch", fetchMock);
-  render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={vi.fn()} />);
+  render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={vi.fn()} onCaseUnavailable={vi.fn()} />);
   await screen.findByText(first.kind);
   expect(screen.getByRole("status").textContent).toContain("1 linked evidence record loaded. More records are available.");
   fireEvent.click(screen.getByRole("button", { name: "Load more evidence" }));
@@ -66,7 +66,7 @@ it("fetches a second metadata page without duplicating the first", async () => {
 it("fails closed on revoked access instead of displaying protected evidence", async () => {
   const onAccessLost = vi.fn();
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ detail: "forbidden" }, 403)));
-  render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={onAccessLost} />);
+  render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={onAccessLost} onCaseUnavailable={vi.fn()} />);
   await waitFor(() => expect(onAccessLost).toHaveBeenCalledTimes(1));
   expect(screen.queryByText(first.kind)).toBeNull();
 });
@@ -76,10 +76,12 @@ it("clears an existing page when case membership disappears", async () => {
     .mockResolvedValueOnce(json({ items: [first], next_cursor: "next" }))
     .mockResolvedValueOnce(json({ detail: "not found" }, 404));
   vi.stubGlobal("fetch", fetchMock);
-  render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={vi.fn()} />);
+  const onCaseUnavailable = vi.fn();
+  render(<CaseEvidencePanel caseId={CASE_ID} onAccessLost={vi.fn()} onCaseUnavailable={onCaseUnavailable} />);
   await screen.findByText(first.kind);
   fireEvent.click(screen.getByRole("button", { name: "Load more evidence" }));
   expect(await screen.findByRole("alert")).toHaveProperty("textContent",
     "This case is no longer assigned to your identity.");
   expect(screen.queryByText(first.kind)).toBeNull();
+  expect(onCaseUnavailable).toHaveBeenCalledTimes(1);
 });
