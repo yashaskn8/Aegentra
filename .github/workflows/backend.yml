@@ -29,6 +29,8 @@ jobs:
         run: ruff check aegentra --select F401,F841,F821
       - name: Enforce Python import boundaries
         run: lint-imports
+      - name: Verify SA-1.1 traceability and component inventory
+        run: python ../scripts/sa11_traceability.py
       - name: Type-check selected backend interfaces
         run: npx --yes pyright@1.1.414 --pythonpath "$(command -v python)"
       - name: Run unit tests

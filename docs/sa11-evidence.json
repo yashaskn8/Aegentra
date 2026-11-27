@@ -1,0 +1,567 @@
+{
+  "baseline_commit": "8ad7bf4c80ce08b5cccf2559fd4d0b3d4e53cf40",
+  "baseline_ci": {
+    "backend": 45958976094,
+    "frontend": 45958976150,
+    "infra": 45958976271,
+    "security": 45958976219
+  },
+  "register_floor_by_page": {
+    "1": 24,
+    "2": 33,
+    "3": 56,
+    "4": 79,
+    "5": 54,
+    "6": 47,
+    "7": 43,
+    "8": 43,
+    "9": 48,
+    "10": 62,
+    "11": 52,
+    "12": 42,
+    "13": 51,
+    "14": 38,
+    "15": 7
+  },
+  "profiles": {
+    "delivery": {
+      "implementation": [
+        "backend/aegentra/fixed_delivery.py",
+        "backend/aegentra/fixed_bundle.py",
+        "backend/aegentra/protected_gateway.py",
+        "backend/aegentra/gateway_signatures.py",
+        "backend/aegentra/origin_asgi.py"
+      ],
+      "runtime_consumer": "Local origin ASGI and gateway admission",
+      "dependencies": "Exact staged bytes, immutable certificate, nonce-bound primary and veto proofs",
+      "backend_regression_files": [
+        "backend/tests/test_fixed_delivery.py",
+        "backend/tests/test_fixed_bundle.py",
+        "backend/tests/test_protected_gateway.py"
+      ],
+      "operational_limitations": "Supported browser/route matrix and customer-enrolled live TLS are unavailable."
+    },
+    "supply": {
+      "implementation": [
+        ".github/workflows/backend.yml",
+        ".github/workflows/frontend.yml",
+        ".github/workflows/infra.yml",
+        ".github/workflows/security.yml",
+        "scripts/supply_chain.py",
+        "scripts/ci_security_gate.py",
+        "backend/requirements.lock",
+        "frontend/package-lock.json",
+        "infra/package-lock.json"
+      ],
+      "runtime_consumer": "Native build, dependency checks and synthesis",
+      "dependencies": "Pinned Python wheels, Node lockfiles, GitHub-hosted native runners",
+      "backend_regression_files": [
+        "backend/tests/test_lockfile_integrity.py"
+      ],
+      "operational_limitations": "No deployed signed AMI/CDK assembly or independent build provenance receipt."
+    },
+    "case": {
+      "implementation": [
+        "backend/aegentra/auth_routes.py",
+        "backend/aegentra/case_contracts.py",
+        "backend/aegentra/case_store.py",
+        "backend/aegentra/case_timeline.py"
+      ],
+      "runtime_consumer": "Authenticated case HTTP handlers and console case panels",
+      "dependencies": "OIDC session, case membership, tenant RLS, scoped evidence, case audit",
+      "backend_regression_files": [
+        "backend/tests/test_case_integration.py",
+        "backend/tests/test_case_timeline.py"
+      ],
+      "operational_limitations": "Existing metadata and timeline cover a subset of evidence classes and projections."
+    },
+    "intake": {
+      "implementation": [
+        "backend/aegentra/api.py",
+        "backend/aegentra/auth_routes.py",
+        "backend/aegentra/intake.py",
+        "backend/aegentra/staging.py",
+        "backend/aegentra/staging_signer.py",
+        "backend/aegentra/content_manifest.py",
+        "backend/aegentra/bounded_json.py"
+      ],
+      "runtime_consumer": "Public preflight and scoped staging upload/finalize handlers",
+      "dependencies": "Tenant session, declarations, quotas, immutable object version IDs and staging signer",
+      "backend_regression_files": [
+        "backend/tests/test_api.py",
+        "backend/tests/test_intake.py",
+        "backend/tests/test_bounded_json.py",
+        "backend/tests/test_content_manifest.py",
+        "backend/tests/test_upload_integration.py",
+        "backend/tests/test_staging_signer.py",
+        "backend/tests/test_evidence_properties.py"
+      ],
+      "operational_limitations": "Storage evidence writer needs trusted independently acquired bytes."
+    },
+    "artifact": {
+      "implementation": [
+        "backend/aegentra/content_manifest.py",
+        "backend/aegentra/verified_storage.py",
+        "backend/aegentra/evidence_verifier.py",
+        "backend/aegentra/s3_reader.py"
+      ],
+      "runtime_consumer": "Content manifest API plus reference verifier and exact-version reader",
+      "dependencies": "Staging rows, byte hashes, S3 versions and future independent signer",
+      "backend_regression_files": [
+        "backend/tests/test_content_manifest.py",
+        "backend/tests/test_verified_storage.py",
+        "backend/tests/test_evidence_verifier.py",
+        "backend/tests/test_evidence_stream_lifecycle.py",
+        "backend/tests/test_evidence_properties.py"
+      ],
+      "operational_limitations": "No separately operated consumer, independent signed manifest or builder materials."
+    },
+    "guest": {
+      "implementation": [
+        "backend/aegentra/bridge_io.py",
+        "backend/aegentra/bridge_custody.py",
+        "backend/aegentra/bridge_disposal.py",
+        "backend/aegentra/bridge_journal.py",
+        "backend/aegentra/disposal_collector.py",
+        "backend/aegentra/guest_creation.py",
+        "backend/aegentra/guest_io.py",
+        "backend/aegentra/guest_janitor.py",
+        "backend/aegentra/guest_physical_operations.py",
+        "backend/aegentra/guest_protocol.py",
+        "backend/aegentra/native_ami_preflight.py",
+        "backend/aegentra/native_attachment_inventory.py",
+        "backend/aegentra/native_creation_controller.py",
+        "backend/aegentra/native_deadline_supervisor.py",
+        "backend/aegentra/native_detach_collector.py",
+        "backend/aegentra/native_detach_worker.py",
+        "backend/aegentra/native_isolation_collector.py",
+        "backend/aegentra/native_isolation_guard.py",
+        "backend/aegentra/native_launch_preflight.py",
+        "backend/aegentra/native_physical_controller.py",
+        "backend/aegentra/offline_guest.py",
+        "backend/aegentra/trusted_result.py",
+        "ops/aegentra-offline-guest.service.example"
+      ],
+      "runtime_consumer": "Offline guest CLI and instrumentable bridge controllers",
+      "dependencies": "Pinned lease, raw devices, static parser, AWS inventory or synthetic fixtures",
+      "backend_regression_files": [
+        "backend/tests/test_guest_protocol.py",
+        "backend/tests/test_guest_io.py",
+        "backend/tests/test_bridge_journal_integration.py",
+        "backend/tests/test_guest_creation_integration.py",
+        "backend/tests/test_native_isolation_guard.py",
+        "backend/tests/test_native_physical_controller.py",
+        "backend/tests/test_native_deadline_supervisor.py",
+        "backend/tests/test_native_detach_worker.py",
+        "backend/tests/test_guest_janitor.py"
+      ],
+      "operational_limitations": "Independently enrolled AWS roles, a qualified AMI and live containment/reachability evidence are unavailable."
+    },
+    "authority": {
+      "implementation": [
+        "backend/aegentra/release_state.py",
+        "backend/aegentra/release_publication.py",
+        "backend/aegentra/publication_receipt.py",
+        "backend/aegentra/publication_archive.py",
+        "backend/aegentra/publication_seal.py",
+        "backend/aegentra/head_service.py"
+      ],
+      "runtime_consumer": "Privileged PostgreSQL command and protocol reference interfaces",
+      "dependencies": "Locked primary, governance, staging proof, archive, review and witness",
+      "backend_regression_files": [
+        "backend/tests/test_release_state_integration.py",
+        "backend/tests/test_publication_receipt.py",
+        "backend/tests/test_head_service.py",
+        "backend/tests/test_witness_registration_integration.py"
+      ],
+      "operational_limitations": "No independently operated private authority ingress and no qualified target."
+    },
+    "witness": {
+      "implementation": [
+        "backend/aegentra/witness_archive.py",
+        "backend/aegentra/witness_crypto.py",
+        "backend/aegentra/witness_registration.py"
+      ],
+      "runtime_consumer": "Witness reference verifier and private registration command",
+      "dependencies": "Exact versioned store, committed primary selection, external root and signatures",
+      "backend_regression_files": [
+        "backend/tests/test_witness_archive.py",
+        "backend/tests/test_witness_crypto.py",
+        "backend/tests/test_witness_registration_integration.py"
+      ],
+      "operational_limitations": "External account custody, conditional version retention and live immutable-archive drills are unavailable."
+    },
+    "observer": {
+      "implementation": [
+        "backend/aegentra/observation_crypto.py",
+        "backend/aegentra/observation_state.py",
+        "backend/aegentra/observer_http.py"
+      ],
+      "runtime_consumer": "Observer reference HTTP reader and PostgreSQL observation command",
+      "dependencies": "Enrolled origin route, independent signing key and current revision",
+      "backend_regression_files": [
+        "backend/tests/test_observation_integration.py",
+        "backend/tests/test_observer_http.py"
+      ],
+      "operational_limitations": "No live customer path or independently operated observation schedule."
+    },
+    "ai": {
+      "implementation": [
+        "frontend/src/CaseEvidencePanel.tsx",
+        "frontend/src/App.tsx"
+      ],
+      "runtime_consumer": "Case evidence panel computes summary of loaded pages",
+      "dependencies": "Authorized metadata only",
+      "backend_regression_files": [
+        "backend/tests/test_case_integration.py"
+      ],
+      "operational_limitations": "Processor dispatch, consent storage and a qualified provider are absent.",
+      "other_regression_files": [
+        "frontend/src/CaseEvidencePanel.test.tsx"
+      ]
+    },
+    "trust": {
+      "implementation": [
+        "backend/aegentra/server.py",
+        "backend/aegentra/api.py",
+        "backend/aegentra/release_state.py",
+        "backend/aegentra/witness_archive.py",
+        "backend/aegentra/protected_gateway.py",
+        "backend/aegentra/review_crypto.py"
+      ],
+      "runtime_consumer": "Shadow server plus guarded reference primitives",
+      "dependencies": "Typed messages, credential pins, independent service identity and provenance",
+      "backend_regression_files": [
+        "backend/tests/test_api.py",
+        "backend/tests/test_review_crypto.py",
+        "backend/tests/test_release_state_integration.py",
+        "backend/tests/test_witness_archive.py",
+        "backend/tests/test_protected_gateway.py"
+      ],
+      "operational_limitations": "Authenticated end-to-end deployment and independent host/administrator evidence are unavailable."
+    },
+    "origin": {
+      "implementation": [
+        "backend/aegentra/origin_binding.py",
+        "backend/aegentra/origin_scope.py",
+        "backend/aegentra/protected_gateway.py",
+        "infra/lib/workload-stack.ts"
+      ],
+      "runtime_consumer": "Origin binding contract, gateway and local CloudFront synthesis",
+      "dependencies": "Approved hostname, route proof, expiry, gateway configuration",
+      "backend_regression_files": [
+        "backend/tests/test_origin_binding.py",
+        "backend/tests/test_protected_gateway.py"
+      ],
+      "operational_limitations": "No enrolled DNS/TLS, cache/failover ownership proof or real origin drill.",
+      "other_regression_files": [
+        "infra/test/stacks.test.ts"
+      ]
+    },
+    "enrollment": {
+      "implementation": [
+        "backend/aegentra/enrollment_contract.py",
+        "backend/aegentra/review_crypto.py",
+        "backend/aegentra/fixed_delivery.py"
+      ],
+      "runtime_consumer": "Shadow enrollment reference contract",
+      "dependencies": "Offline roots, identified independent people and customer target profile",
+      "backend_regression_files": [
+        "backend/tests/test_enrollment_contract.py",
+        "backend/tests/test_review_crypto.py",
+        "backend/tests/test_release_state_integration.py"
+      ],
+      "operational_limitations": "No signed security/customer scope or review-device/custodian enrollment."
+    },
+    "lease": {
+      "implementation": [
+        "backend/aegentra/scan_leases.py",
+        "backend/aegentra/scan_receipts.py",
+        "backend/aegentra/outbox_worker.py"
+      ],
+      "runtime_consumer": "Scoped scan API and private lease/result command interfaces",
+      "dependencies": "Native PostgreSQL, nonce/fence, SQS plan and attempt controller",
+      "backend_regression_files": [
+        "backend/tests/test_scan_leases_integration.py",
+        "backend/tests/test_scan_receipt_integration.py",
+        "backend/tests/test_outbox_worker.py"
+      ],
+      "operational_limitations": "No qualified live SQS consumer or enrolled worker infrastructure."
+    },
+    "scan": {
+      "implementation": [
+        "backend/aegentra/static_analysis.py",
+        "backend/aegentra/lockfile_analysis.py",
+        "backend/aegentra/coverage.py",
+        "backend/aegentra/trusted_result.py"
+      ],
+      "runtime_consumer": "Offline guest analysis and trusted result-validation interfaces",
+      "dependencies": "Pinned grammar, sealed inert inputs and reviewer baseline trust",
+      "backend_regression_files": [
+        "backend/tests/test_static_analysis.py",
+        "backend/tests/test_lockfile_integrity.py",
+        "backend/tests/test_coverage.py",
+        "backend/tests/test_evidence_properties.py"
+      ],
+      "operational_limitations": "Full golden corpus and approved source materials are unavailable. Supported static analysis is bounded."
+    },
+    "facts": {
+      "implementation": [
+        "backend/aegentra/evidence_verifier.py",
+        "backend/aegentra/scan_receipts.py",
+        "backend/aegentra/observation_crypto.py"
+      ],
+      "runtime_consumer": "Existing verifier/receipt interfaces cover only narrow fact families",
+      "dependencies": "Exact external object versions, typed enrolled issuer and stable event ID",
+      "backend_regression_files": [
+        "backend/tests/test_evidence_verifier.py",
+        "backend/tests/test_scan_receipt_integration.py",
+        "backend/tests/test_observation_integration.py"
+      ],
+      "operational_limitations": "General issuer-event storage, retention and correction lifecycle are absent."
+    },
+    "review": {
+      "implementation": [
+        "backend/aegentra/review_crypto.py",
+        "backend/aegentra/staging_proof.py",
+        "backend/aegentra/publication_receipt.py"
+      ],
+      "runtime_consumer": "Independent-signature verifier and downstream receipt commands",
+      "dependencies": "Review subject, keys, person/custody evidence, challenge and enrolled client",
+      "backend_regression_files": [
+        "backend/tests/test_review_crypto.py",
+        "backend/tests/test_staging_proof.py",
+        "backend/tests/test_publication_receipt.py"
+      ],
+      "operational_limitations": "Native review client and credential enrollment service are absent."
+    },
+    "veto": {
+      "implementation": [
+        "backend/aegentra/security_veto.py",
+        "backend/aegentra/stop_containment.py",
+        "backend/aegentra/incident_containment.py"
+      ],
+      "runtime_consumer": "Signed veto check, scoped containment assessor and incident command",
+      "dependencies": "Independent root, gateway inventory, cutoff receipts and trusted clock",
+      "backend_regression_files": [
+        "backend/tests/test_security_veto.py",
+        "backend/tests/test_stop_containment.py",
+        "backend/tests/test_incident_containment_integration.py"
+      ],
+      "operational_limitations": "Live external stop, independent acknowledgements and admission drain are unqualified."
+    },
+    "platform": {
+      "implementation": [
+        "backend/aegentra/api.py",
+        "backend/aegentra/server.py",
+        "backend/aegentra/bounded_json.py",
+        "backend/aegentra/persistence.py",
+        "backend/aegentra/db.py"
+      ],
+      "runtime_consumer": "Native shadow HTTP, scoped database and signed codec consumers",
+      "dependencies": "FastAPI, PostgreSQL and canonical JSON",
+      "backend_regression_files": [
+        "backend/tests/test_api.py",
+        "backend/tests/test_bounded_json.py",
+        "backend/tests/test_persistence.py",
+        "backend/tests/test_pg_integration.py"
+      ],
+      "operational_limitations": "Common wire/route conventions vary across reference protocols and deployed paths."
+    },
+    "identity": {
+      "implementation": [
+        "backend/aegentra/oidc.py",
+        "backend/aegentra/auth_store.py",
+        "backend/aegentra/auth_routes.py",
+        "backend/aegentra/asset_store.py"
+      ],
+      "runtime_consumer": "Browser OIDC and case/asset session handlers",
+      "dependencies": "Pinned IdP metadata, cookies, CSRF, membership revision and PostgreSQL",
+      "backend_regression_files": [
+        "backend/tests/test_oidc.py",
+        "backend/tests/test_auth_integration.py",
+        "backend/tests/test_case_integration.py"
+      ],
+      "operational_limitations": "Protected reviewer and service identity enrollment are incomplete."
+    },
+    "incident": {
+      "implementation": [
+        "backend/aegentra/incident_state.py",
+        "backend/aegentra/incident_containment.py",
+        "backend/aegentra/containment_archive.py"
+      ],
+      "runtime_consumer": "Incident commands and operations degradation projection",
+      "dependencies": "Scoped authority, transition revision, signed confirmation and outbox",
+      "backend_regression_files": [
+        "backend/tests/test_incident_containment_integration.py",
+        "backend/tests/test_containment_archive.py"
+      ],
+      "operational_limitations": "Requires enrolled independent responder and receipt archive for action evidence."
+    },
+    "operations": {
+      "implementation": [
+        "backend/aegentra/operations_projection.py",
+        "backend/aegentra/auth_routes.py",
+        "frontend/src/OperationsPanel.tsx"
+      ],
+      "runtime_consumer": "Scoped operations API and console",
+      "dependencies": "Queue, scan, incident and authority projections",
+      "backend_regression_files": [
+        "backend/tests/test_auth_integration.py"
+      ],
+      "operational_limitations": "No private readiness/metrics and no operator paging deployment.",
+      "other_regression_files": [
+        "frontend/src/OperationsPanel.test.tsx"
+      ]
+    },
+    "data": {
+      "implementation": [
+        "backend/aegentra/db.py",
+        "backend/aegentra/persistence.py",
+        "backend/migrations/env.py"
+      ],
+      "runtime_consumer": "Alembic and runtime SQLAlchemy transactions",
+      "dependencies": "Primary PostgreSQL, tenant scope, composite references and roles",
+      "backend_regression_files": [
+        "backend/tests/test_db.py",
+        "backend/tests/test_pg_integration.py",
+        "backend/tests/test_case_integration.py"
+      ],
+      "operational_limitations": "Full privacy schema, migration qualification and independent ownership reviews are open."
+    },
+    "audit": {
+      "implementation": [
+        "backend/aegentra/audit.py",
+        "backend/aegentra/audit_checkpoint.py",
+        "backend/aegentra/audit_reconcile.py",
+        "backend/aegentra/outbox_dispatch.py",
+        "backend/aegentra/outbox_worker.py",
+        "backend/migrations/versions/0017_audit_payload.py",
+        "ops/aegentra-outbox.service.example",
+        "ops/aegentra-outbox.timer.example"
+      ],
+      "runtime_consumer": "Domain mutations, local reconciliation and outbox runner",
+      "dependencies": "Native PostgreSQL, stream locks, external immutable receipt and consumer",
+      "backend_regression_files": [
+        "backend/tests/test_audit_checkpoint.py",
+        "backend/tests/test_audit_reconcile.py",
+        "backend/tests/test_outbox_dispatch_integration.py",
+        "backend/tests/test_outbox_worker.py",
+        "backend/tests/test_pg_integration.py"
+      ],
+      "operational_limitations": "No independently retained production archive or real replay/consumer drill."
+    },
+    "privacy": {
+      "implementation": [
+        "backend/aegentra/recovery_preflight.py",
+        "backend/aegentra/case_store.py"
+      ],
+      "runtime_consumer": "Case membership enforcement and recovery inventory are existing foundations",
+      "dependencies": "Retention policy, object version custody, tenant withdrawal and independently retained tombstones",
+      "backend_regression_files": [
+        "backend/tests/test_case_integration.py",
+        "backend/tests/test_recovery_preflight.py"
+      ],
+      "operational_limitations": "No general retention and deletion service or signed external tombstone store."
+    },
+    "console": {
+      "implementation": [
+        "frontend/src",
+        "frontend/e2e/console.pw.ts"
+      ],
+      "runtime_consumer": "Vite React shadow console",
+      "dependencies": "Scoped BFF sessions and current case/operations projections",
+      "backend_regression_files": [
+        "backend/tests/test_case_integration.py"
+      ],
+      "operational_limitations": "Browser tests use synthetic data. Several views and inert source byte contracts are absent.",
+      "other_regression_files": [
+        "frontend/e2e/console.pw.ts",
+        "frontend/src/CaseEvidencePanel.test.tsx",
+        "frontend/src/CasesPanel.test.tsx",
+        "frontend/src/OperationsPanel.test.tsx"
+      ]
+    },
+    "cloud": {
+      "implementation": [
+        "infra/lib",
+        "infra/bin/aegentra.ts",
+        "infra/test/stacks.test.ts"
+      ],
+      "runtime_consumer": "CDK local synthesis only",
+      "dependencies": "CDK native assembly and future independently managed AWS accounts",
+      "backend_regression_files": [
+        "backend/tests/test_native_isolation_guard.py"
+      ],
+      "operational_limitations": "Synthesis cannot establish live IAM, endpoint reachability, customer infrastructure or custody.",
+      "other_regression_files": [
+        "infra/test/stacks.test.ts"
+      ]
+    },
+    "capacity": {
+      "implementation": [
+        "scripts/benchmark_case_evidence.sql",
+        "backend/aegentra/protected_gateway.py",
+        "backend/aegentra/native_deadline_supervisor.py"
+      ],
+      "runtime_consumer": "Local native page benchmark and request/attempt bounds",
+      "dependencies": "Disposable PostgreSQL or synthetic proof/guest workload",
+      "backend_regression_files": [
+        "backend/tests/test_protected_gateway.py",
+        "backend/tests/test_native_deadline_supervisor.py"
+      ],
+      "operational_limitations": "No target topology, trained operator drills or qualified workload measurements."
+    },
+    "recovery": {
+      "implementation": [
+        "backend/aegentra/recovery_preflight.py"
+      ],
+      "runtime_consumer": "Standalone assessor exercised by synthetic tests only",
+      "dependencies": "Independent custodians, network controls, old writer fence, immutable provider facts",
+      "backend_regression_files": [
+        "backend/tests/test_recovery_preflight.py"
+      ],
+      "operational_limitations": "Collector, corroborated signed records, live restoration and newly enrolled identities are unavailable.",
+      "verification": {
+        "implementation_commit": "3c237097f3b3e7328c631cb0ce148bc11123d4d6",
+        "requirement_ids": [
+          "SA11-P13-010",
+          "SA11-P13-012",
+          "SA11-P13-015"
+        ],
+        "regression": "28 synthetic recovery preflight cases, including strict attestation types, generation range and independent serving/notification controls."
+      }
+    },
+    "qual": {
+      "implementation": [
+        "docs/sa11-traceability.md",
+        "docs/implementation-status.md",
+        "docs/security-release-gates.md"
+      ],
+      "runtime_consumer": "Independent security, customer, identity and operator release review",
+      "dependencies": "Matrix C oracles, frozen artifacts and independent sign-off",
+      "backend_regression_files": [],
+      "operational_limitations": "Matrix C detailed oracles and independent signed qualification results were unavailable."
+    },
+    "export": {
+      "implementation": [
+        "backend/aegentra/auth_routes.py",
+        "backend/aegentra/case_store.py",
+        "backend/aegentra/case_contracts.py"
+      ],
+      "runtime_consumer": "GET /v1/cases/{case_id}/exports with explicit evidence_metadata projection. Streaming API clients must validate the end record.",
+      "dependencies": "Active BFF session, case membership, tenant RLS and indexed linked evidence metadata.",
+      "backend_regression_files": [
+        "backend/tests/test_case_integration.py"
+      ],
+      "operational_limitations": "No frontend download workflow. No binary, excerpt, source diff, incident or other evidence projection. No snapshot across requests.",
+      "verification": {
+        "implementation_commit": "14926f6a8db3c6c08f2519efaf4aa2936c49302b",
+        "requirement_ids": [
+          "SA11-P08-036"
+        ],
+        "regression": "Native PostgreSQL test_cases_are_membership_scoped_and_evidence_is_asset_bound exercises approved scope, continuation and mid-response revocation."
+      }
+    }
+  }
+}

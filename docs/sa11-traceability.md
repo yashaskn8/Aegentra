@@ -6,6 +6,44 @@ The page numbers and D/F/T identifiers below come from that file. The
 [incremental requirements ledger](requirements-ledger.json) retains its
 existing identifiers and records file and CI evidence for individual changes.
 
+## Statement register and reverse index
+
+The [requirement register](sa11-requirements.tsv) covers all 15 source pages,
+including the page 3 trust-domain diagram, each of the six release protocol
+steps, each staged exit S0–S5 and each D/F/T qualification row. The IDs use the
+PDF page and an assigned ordinal. Keep existing IDs stable when a requirement
+needs to be split or corrected. A row records the source location, checkable
+criterion, evidence profile and outstanding work or evidence boundary.
+
+[Evidence profiles](sa11-evidence.json) link a requirement to implementation,
+consumers, dependencies, exercised regression files and limits. Related
+requirements can share a profile. Those files identify the exercised suites
+for the profile. A standalone contract can have verified local behavior while
+its expected runtime path remains partial. The D9 export and D11 preflight
+entries also identify their implementation commits and specific regressions.
+
+The [component inventory](sa11-component-inventory.tsv) gives the reverse path.
+It enumerates tracked backend modules, literal FastAPI routes, Alembic
+revisions and created tables, state declarations, console components, explicit
+CDK constructs, runtime definitions and configuration. Match a component's
+profiles to the register. This index is structural. Indirect relationships,
+generated CloudFormation children and acceptance at deployed entry points
+still require source or runtime inspection. Regenerate and check it with
+`python scripts/sa11_traceability.py --write-inventory` and
+`python scripts/sa11_traceability.py` from the repository root.
+
+| State | Meaning |
+| --- | --- |
+| Implemented and verified | Current local behavior with cited regression or policy evidence, within the stated boundary. |
+| Partially implemented | Existing behavior, contract or schema covers part of the requirement. |
+| Pending | Local implementation or a runtime consumer remains open. |
+| Blocked | Progress on the criterion requires independent evidence, custody or a qualification environment. |
+
+The PDF refers to Matrix C but contains only its qualification index. The
+separate oracles, fixture versions, negative controls, transcripts and human
+sign-offs were unavailable. This register records the statements present in
+the supplied PDF. Independent protected-mode qualification remains open.
+
 ## Sections and implementation
 
 | Section | Repository evidence | Open implementation or verification |
@@ -15,7 +53,7 @@ existing identifiers and records file and CI evidence for individual changes.
 | 3, pp. 3–4 · Intake and enrollment | [Content manifest](content-manifest.md), [staging](staging-upload.md), [versioned storage proof](verified-storage.md), [enrollment](s0-enrollment-contract.md) | The verifier is an unsigned reference contract. It lacks an independently operated consumer and signed source-builder provenance. |
 | 4, pp. 4–5 · Analysis and evidence | [Scan leases](scan-leases.md), [guest protocol](native-guest-contract.md), [advisory receipts](scan-receipts.md), [static analysis](../backend/aegentra/static_analysis.py), [disposal](guest-disposal.md) | Evidence production remains disconnected from case reads. Typed issuer-event ingestion, correction history, provenance, retention and independent analysis fixtures remain open. |
 | 5, pp. 5–8 · Protected release | [Release contracts](release-shadow.md), [witness archive](witness-archive.md), [publication](publication-protocol.md), [gateway](protected-gateway.md), [observer](independent-observer.md), [emergency veto](emergency-veto.md) | Deployment, physical immutability, custody, origin closure, live service availability and drills require independent verification. |
-| 6, pp. 8–9 · Backend contracts | [Auth and scoped routes](../backend/aegentra/auth_routes.py) include authenticated asset reads by ID. See [case storage](../backend/aegentra/case_store.py) and the [operations projection](../backend/aegentra/operations_projection.py). | Findings, exports, typed events, readiness, metrics and private release/work interfaces remain partial or absent. |
+| 6, pp. 8–9 · Backend contracts | [Auth and scoped routes](../backend/aegentra/auth_routes.py) include authenticated asset reads by ID and [streaming case metadata export](case-evidence-pagination.md). See [case storage](../backend/aegentra/case_store.py) and the [operations projection](../backend/aegentra/operations_projection.py). | Findings, additional export projections, typed events, readiness, metrics and private release/work interfaces remain partial or absent. |
 | 7, pp. 9–11 · PostgreSQL and audit | [Migrations](../backend/migrations/versions), [audit](../backend/aegentra/audit.py), [checkpoint](audit-checkpoints.md), [outbox](outbox-dispatch.md), [pagination index](../backend/migrations/versions/0023_case_evidence_page.py) | Typed evidence provenance, retention holds, consent, tombstones and restored-read handling remain open. Archive and consumer durability require external evidence. |
 | 8, p. 11 · Console and AI | [Console source](../frontend/src), [browser regressions](../frontend/e2e/console.pw.ts), [case evidence summary](../frontend/src/CaseEvidencePanel.tsx), [authorized case timeline](case-timeline.md) | A model-free summary covers loaded evidence metadata. The timeline covers retained case audit records. Scoped diffs, approval/observation views and optional external processing remain open. |
 | 9, pp. 12–13 · AWS, operations and recovery | [Native CDK](../infra), [supply-chain checks](python-supply-chain.md), [incident containment](incident-containment.md), [recovery](recovery-preflight.md) | Physical identity and infrastructure controls, deployment, restore drills, capacity and independent responder evidence remain open. |
@@ -33,7 +71,7 @@ existing identifiers and records file and CI evidence for individual changes.
 | D6 | F06 / T06 | P0 | [Native isolation inventory](native-isolation-inventory.md), [launch preflight](native-launch-preflight.md). Independent live native isolation and custody evidence required. |
 | D7 | F07 / T07 | P0 | [Static analysis](../backend/aegentra/static_analysis.py), [integrity regression](../backend/tests/test_lockfile_integrity.py). Measured analysis corpus and pinned native artifact evidence required. |
 | D8 | F08 / T08 | P1 | [Native tests and implementation status](implementation-status.md). Measure qualified capacity, time and cost on the actual target workload. |
-| D9 | F09 / T09 | P0 | [Authorized case timeline](case-timeline.md), [scoped case tests](../backend/tests/test_case_integration.py), [console tests](../frontend/e2e/console.pw.ts). Expanded evidence-class projections, source excerpts and exports, external-origin and retention gates remain open. |
+| D9 | F09 / T09 | P0 | [Authorized case timeline](case-timeline.md), [streaming metadata export](case-evidence-pagination.md), [scoped case tests](../backend/tests/test_case_integration.py), [console tests](../frontend/e2e/console.pw.ts). Additional evidence-class projections, source excerpts, external-origin and retention gates remain open. |
 | D10 | F10 / T10 | P1 | [Local evidence summary](../frontend/src/CaseEvidencePanel.tsx). Consent/dispatch controls and blinded evaluation are required if external inference is enabled. |
 | D11 | F11 / T11 | P0 | [Recovery preflight](recovery-preflight.md), [witness archive](witness-archive.md). Independently retained floor, tombstones, restore and old-writer denial evidence required. |
 | D12 | F12 / T12 | P0 | [Audit reconciliation](audit-reconcile.md), [checkpoint](audit-checkpoints.md), [native outbox tests](../backend/tests/test_outbox_dispatch_integration.py). Independent archive reconciliation and physical recovery evidence required. |

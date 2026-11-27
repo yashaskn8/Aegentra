@@ -1,0 +1,275 @@
+kind	component	source	evidence_profiles
+backend_module	backend/aegentra/__init__.py	backend/aegentra/__init__.py	platform
+backend_module	backend/aegentra/api.py	backend/aegentra/api.py	intake,platform,trust
+backend_module	backend/aegentra/asset_store.py	backend/aegentra/asset_store.py	identity
+backend_module	backend/aegentra/audit.py	backend/aegentra/audit.py	audit
+backend_module	backend/aegentra/audit_checkpoint.py	backend/aegentra/audit_checkpoint.py	audit
+backend_module	backend/aegentra/audit_reconcile.py	backend/aegentra/audit_reconcile.py	audit
+backend_module	backend/aegentra/auth_routes.py	backend/aegentra/auth_routes.py	case,export,identity,intake,operations
+backend_module	backend/aegentra/auth_store.py	backend/aegentra/auth_store.py	identity
+backend_module	backend/aegentra/bounded_json.py	backend/aegentra/bounded_json.py	intake,platform
+backend_module	backend/aegentra/bridge_custody.py	backend/aegentra/bridge_custody.py	guest
+backend_module	backend/aegentra/bridge_disposal.py	backend/aegentra/bridge_disposal.py	guest
+backend_module	backend/aegentra/bridge_io.py	backend/aegentra/bridge_io.py	guest
+backend_module	backend/aegentra/bridge_journal.py	backend/aegentra/bridge_journal.py	guest
+backend_module	backend/aegentra/case_contracts.py	backend/aegentra/case_contracts.py	case,export
+backend_module	backend/aegentra/case_store.py	backend/aegentra/case_store.py	case,export,privacy
+backend_module	backend/aegentra/case_timeline.py	backend/aegentra/case_timeline.py	case
+backend_module	backend/aegentra/containment_archive.py	backend/aegentra/containment_archive.py	incident
+backend_module	backend/aegentra/content_manifest.py	backend/aegentra/content_manifest.py	artifact,intake
+backend_module	backend/aegentra/coverage.py	backend/aegentra/coverage.py	scan
+backend_module	backend/aegentra/db.py	backend/aegentra/db.py	data,platform
+backend_module	backend/aegentra/disposal_collector.py	backend/aegentra/disposal_collector.py	guest
+backend_module	backend/aegentra/enrollment_contract.py	backend/aegentra/enrollment_contract.py	enrollment
+backend_module	backend/aegentra/evidence_verifier.py	backend/aegentra/evidence_verifier.py	artifact,facts
+backend_module	backend/aegentra/fixed_bundle.py	backend/aegentra/fixed_bundle.py	delivery
+backend_module	backend/aegentra/fixed_delivery.py	backend/aegentra/fixed_delivery.py	delivery,enrollment
+backend_module	backend/aegentra/gateway_signatures.py	backend/aegentra/gateway_signatures.py	delivery
+backend_module	backend/aegentra/guest_creation.py	backend/aegentra/guest_creation.py	guest
+backend_module	backend/aegentra/guest_io.py	backend/aegentra/guest_io.py	guest
+backend_module	backend/aegentra/guest_janitor.py	backend/aegentra/guest_janitor.py	guest
+backend_module	backend/aegentra/guest_physical_operations.py	backend/aegentra/guest_physical_operations.py	guest
+backend_module	backend/aegentra/guest_protocol.py	backend/aegentra/guest_protocol.py	guest
+backend_module	backend/aegentra/head_service.py	backend/aegentra/head_service.py	authority
+backend_module	backend/aegentra/incident_containment.py	backend/aegentra/incident_containment.py	incident,veto
+backend_module	backend/aegentra/incident_state.py	backend/aegentra/incident_state.py	incident
+backend_module	backend/aegentra/intake.py	backend/aegentra/intake.py	intake
+backend_module	backend/aegentra/lockfile_analysis.py	backend/aegentra/lockfile_analysis.py	scan
+backend_module	backend/aegentra/native_ami_preflight.py	backend/aegentra/native_ami_preflight.py	guest
+backend_module	backend/aegentra/native_attachment_inventory.py	backend/aegentra/native_attachment_inventory.py	guest
+backend_module	backend/aegentra/native_creation_controller.py	backend/aegentra/native_creation_controller.py	guest
+backend_module	backend/aegentra/native_deadline_supervisor.py	backend/aegentra/native_deadline_supervisor.py	capacity,guest
+backend_module	backend/aegentra/native_detach_collector.py	backend/aegentra/native_detach_collector.py	guest
+backend_module	backend/aegentra/native_detach_worker.py	backend/aegentra/native_detach_worker.py	guest
+backend_module	backend/aegentra/native_isolation_collector.py	backend/aegentra/native_isolation_collector.py	guest
+backend_module	backend/aegentra/native_isolation_guard.py	backend/aegentra/native_isolation_guard.py	guest
+backend_module	backend/aegentra/native_launch_preflight.py	backend/aegentra/native_launch_preflight.py	guest
+backend_module	backend/aegentra/native_physical_controller.py	backend/aegentra/native_physical_controller.py	guest
+backend_module	backend/aegentra/observation_crypto.py	backend/aegentra/observation_crypto.py	facts,observer
+backend_module	backend/aegentra/observation_state.py	backend/aegentra/observation_state.py	observer
+backend_module	backend/aegentra/observer_http.py	backend/aegentra/observer_http.py	observer
+backend_module	backend/aegentra/offline_guest.py	backend/aegentra/offline_guest.py	guest
+backend_module	backend/aegentra/oidc.py	backend/aegentra/oidc.py	identity
+backend_module	backend/aegentra/operations_projection.py	backend/aegentra/operations_projection.py	operations
+backend_module	backend/aegentra/origin_asgi.py	backend/aegentra/origin_asgi.py	delivery
+backend_module	backend/aegentra/origin_binding.py	backend/aegentra/origin_binding.py	origin
+backend_module	backend/aegentra/origin_scope.py	backend/aegentra/origin_scope.py	origin
+backend_module	backend/aegentra/outbox_dispatch.py	backend/aegentra/outbox_dispatch.py	audit
+backend_module	backend/aegentra/outbox_worker.py	backend/aegentra/outbox_worker.py	audit,lease
+backend_module	backend/aegentra/persistence.py	backend/aegentra/persistence.py	data,platform
+backend_module	backend/aegentra/protected_gateway.py	backend/aegentra/protected_gateway.py	capacity,delivery,origin,trust
+backend_module	backend/aegentra/publication_archive.py	backend/aegentra/publication_archive.py	authority
+backend_module	backend/aegentra/publication_receipt.py	backend/aegentra/publication_receipt.py	authority,review
+backend_module	backend/aegentra/publication_seal.py	backend/aegentra/publication_seal.py	authority
+backend_module	backend/aegentra/recovery_preflight.py	backend/aegentra/recovery_preflight.py	privacy,recovery
+backend_module	backend/aegentra/release_publication.py	backend/aegentra/release_publication.py	authority
+backend_module	backend/aegentra/release_state.py	backend/aegentra/release_state.py	authority,trust
+backend_module	backend/aegentra/review_crypto.py	backend/aegentra/review_crypto.py	enrollment,review,trust
+backend_module	backend/aegentra/s3_reader.py	backend/aegentra/s3_reader.py	artifact
+backend_module	backend/aegentra/scan_leases.py	backend/aegentra/scan_leases.py	lease
+backend_module	backend/aegentra/scan_receipts.py	backend/aegentra/scan_receipts.py	facts,lease
+backend_module	backend/aegentra/security_veto.py	backend/aegentra/security_veto.py	veto
+backend_module	backend/aegentra/server.py	backend/aegentra/server.py	platform,trust
+backend_module	backend/aegentra/staging.py	backend/aegentra/staging.py	intake
+backend_module	backend/aegentra/staging_proof.py	backend/aegentra/staging_proof.py	review
+backend_module	backend/aegentra/staging_signer.py	backend/aegentra/staging_signer.py	intake
+backend_module	backend/aegentra/static_analysis.py	backend/aegentra/static_analysis.py	scan
+backend_module	backend/aegentra/stop_containment.py	backend/aegentra/stop_containment.py	veto
+backend_module	backend/aegentra/trusted_result.py	backend/aegentra/trusted_result.py	guest,scan
+backend_module	backend/aegentra/verified_storage.py	backend/aegentra/verified_storage.py	artifact
+backend_module	backend/aegentra/witness_archive.py	backend/aegentra/witness_archive.py	trust,witness
+backend_module	backend/aegentra/witness_crypto.py	backend/aegentra/witness_crypto.py	witness
+backend_module	backend/aegentra/witness_registration.py	backend/aegentra/witness_registration.py	witness
+cdk_construct	CfnOutput AuditCheckpointSigningKeyArn	infra/lib/security-stack.ts	cloud
+cdk_construct	CfnOutput GuestSecurityGroupId	infra/lib/analysis-stack.ts	cloud
+cdk_construct	CfnOutput GuestSubnetId	infra/lib/analysis-stack.ts	cloud
+cdk_construct	CfnOutput OutboxQueueUrl	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	CfnOutput OutboxWorkerRoleArn	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	CfnOutput OutboxWorkerSecurityGroupId	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	CfnOutput SecurityVetoSigningKeyArn	infra/lib/security-stack.ts	cloud
+cdk_construct	CfnOutput WitnessSigningKeyArn	infra/lib/security-stack.ts	cloud
+cdk_construct	InterfaceVpcEndpoint SqsPrivateEndpoint	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	ec2.SecurityGroup OfflineGuestSecurityGroup	infra/lib/analysis-stack.ts	cloud
+cdk_construct	ec2.SecurityGroup OutboxWorkerSecurityGroup	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	ec2.SecurityGroup SqsEndpointSecurityGroup	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	ec2.Vpc GuestVpc	infra/lib/analysis-stack.ts	cloud
+cdk_construct	ec2.Vpc WorkloadVpc	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	iam.Role OutboxWorkerRole	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	kms.Key ArchiveKey	infra/lib/security-stack.ts	cloud
+cdk_construct	kms.Key AuditCheckpointSigningKey	infra/lib/security-stack.ts	cloud
+cdk_construct	kms.Key EvidenceKey	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	kms.Key SecurityVetoSigningKey	infra/lib/security-stack.ts	cloud
+cdk_construct	kms.Key WitnessSigningKey	infra/lib/security-stack.ts	cloud
+cdk_construct	rds.DatabaseInstance StateDatabase	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	s3.Bucket AuditProofArchive	infra/lib/security-stack.ts	cloud
+cdk_construct	s3.Bucket EvidenceBucket	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	sqs.Queue OutboxDeadLetterQueue	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	sqs.Queue OutboxFifoQueue	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	sqs.Queue ScanDeadLetterQueue	infra/lib/workload-stack.ts	cloud,origin
+cdk_construct	sqs.Queue ScanQueue	infra/lib/workload-stack.ts	cloud,origin
+configuration	.github/workflows/backend.yml	.github/workflows/backend.yml	supply
+configuration	.github/workflows/frontend.yml	.github/workflows/frontend.yml	supply
+configuration	.github/workflows/infra.yml	.github/workflows/infra.yml	supply
+configuration	.github/workflows/security.yml	.github/workflows/security.yml	supply
+configuration	backend/alembic.ini	backend/alembic.ini	supply
+configuration	backend/migrations/env.py	backend/migrations/env.py	data
+configuration	backend/pyproject.toml	backend/pyproject.toml	supply
+configuration	backend/requirements.lock	backend/requirements.lock	supply
+configuration	frontend/.dependency-cruiser.cjs	frontend/.dependency-cruiser.cjs	supply
+configuration	frontend/index.html	frontend/index.html	supply
+configuration	frontend/package-lock.json	frontend/package-lock.json	supply
+configuration	frontend/package.json	frontend/package.json	supply
+configuration	frontend/playwright.config.ts	frontend/playwright.config.ts	supply
+configuration	frontend/src/styles.css	frontend/src/styles.css	console
+configuration	frontend/tsconfig.json	frontend/tsconfig.json	supply
+configuration	frontend/vite.config.ts	frontend/vite.config.ts	supply
+configuration	infra/cdk.json	infra/cdk.json	cloud
+configuration	infra/package-lock.json	infra/package-lock.json	supply
+configuration	infra/package.json	infra/package.json	cloud
+configuration	infra/tsconfig.json	infra/tsconfig.json	cloud
+environment_key	AEGENTRA_BRIDGE_ACTOR_ID	backend/aegentra/native_detach_worker.py	guest
+environment_key	AEGENTRA_BRIDGE_AWS_REGION	backend/aegentra/native_detach_worker.py	guest
+environment_key	AEGENTRA_BRIDGE_AWS_REGION	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_BRIDGE_DATABASE_URL	backend/aegentra/native_detach_worker.py	guest
+environment_key	AEGENTRA_BRIDGE_DATABASE_URL	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_BRIDGE_GENERATION	backend/aegentra/native_detach_worker.py	guest
+environment_key	AEGENTRA_BRIDGE_GENERATION	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_BRIDGE_JOB_ID	backend/aegentra/native_detach_worker.py	guest
+environment_key	AEGENTRA_BRIDGE_JOB_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_BRIDGE_ORG_ID	backend/aegentra/native_detach_worker.py	guest
+environment_key	AEGENTRA_BRIDGE_ORG_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_DATABASE_URL	backend/aegentra/server.py	platform,trust
+environment_key	AEGENTRA_ENROLLED_AMI_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_ANALYSIS_ACCOUNT_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_EBS_KMS_KEY_ARN	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_GUEST_AZ	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_GUEST_SG_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_GUEST_SUBNET_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_GUEST_VPC_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_IMAGE_OWNER_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_ROOT_SNAPSHOT_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_ENROLLED_SNAPSHOT_OWNER_ID	backend/aegentra/native_launch_preflight.py	guest
+environment_key	AEGENTRA_OIDC_ISSUER	backend/aegentra/oidc.py	identity
+environment_key	AEGENTRA_OUTBOX_AWS_REGION	backend/aegentra/outbox_worker.py	audit,lease
+environment_key	AEGENTRA_OUTBOX_DATABASE_URL	backend/aegentra/outbox_worker.py	audit,lease
+environment_key	AEGENTRA_OUTBOX_FIFO_QUEUE_URL	backend/aegentra/outbox_worker.py	audit,lease
+environment_key	AEGENTRA_OUTBOX_ORG_ID	backend/aegentra/outbox_worker.py	audit,lease
+environment_key	AEGENTRA_STAGING_BUCKET	backend/aegentra/server.py	platform,trust
+environment_key	AEGENTRA_STAGING_REGION	backend/aegentra/server.py	platform,trust
+frontend_component	frontend/src/App.tsx	frontend/src/App.tsx	ai,console
+frontend_component	frontend/src/AuthPanel.tsx	frontend/src/AuthPanel.tsx	console
+frontend_component	frontend/src/CaseEvidencePanel.tsx	frontend/src/CaseEvidencePanel.tsx	ai,console
+frontend_component	frontend/src/CaseTimelinePanel.tsx	frontend/src/CaseTimelinePanel.tsx	console
+frontend_component	frontend/src/CasesPanel.tsx	frontend/src/CasesPanel.tsx	console
+frontend_component	frontend/src/OperationsPanel.tsx	frontend/src/OperationsPanel.tsx	console,operations
+frontend_component	frontend/src/main.tsx	frontend/src/main.tsx	console
+http_route	GET /v1/assets	backend/aegentra/auth_routes.py	identity
+http_route	GET /v1/assets/{asset_id}	backend/aegentra/auth_routes.py	identity
+http_route	GET /v1/auth/callback	backend/aegentra/auth_routes.py	identity
+http_route	GET /v1/auth/login	backend/aegentra/auth_routes.py	identity
+http_route	GET /v1/cases	backend/aegentra/auth_routes.py	case
+http_route	GET /v1/cases/{case_id}	backend/aegentra/auth_routes.py	case
+http_route	GET /v1/cases/{case_id}/evidence	backend/aegentra/auth_routes.py	case
+http_route	GET /v1/cases/{case_id}/evidence/{evidence_id}/meta	backend/aegentra/auth_routes.py	case
+http_route	GET /v1/cases/{case_id}/evidence/{evidence_id}/timeline	backend/aegentra/auth_routes.py	case
+http_route	GET /v1/cases/{case_id}/exports	backend/aegentra/auth_routes.py	export
+http_route	GET /v1/cases/{case_id}/timeline	backend/aegentra/auth_routes.py	case
+http_route	GET /v1/health/live	backend/aegentra/api.py	platform
+http_route	GET /v1/me	backend/aegentra/auth_routes.py	identity
+http_route	GET /v1/operations/scans	backend/aegentra/auth_routes.py	operations
+http_route	POST /v1/assets	backend/aegentra/auth_routes.py	identity
+http_route	POST /v1/assets/{asset_id}/uploads	backend/aegentra/auth_routes.py	intake
+http_route	POST /v1/auth/logout	backend/aegentra/auth_routes.py	identity
+http_route	POST /v1/cases	backend/aegentra/auth_routes.py	case
+http_route	POST /v1/cases/{case_id}/evidence	backend/aegentra/auth_routes.py	case
+http_route	POST /v1/cases/{case_id}/transition	backend/aegentra/auth_routes.py	incident
+http_route	POST /v1/local/validate-manifest	backend/aegentra/api.py	intake
+http_route	POST /v1/uploads/{upload_id}/finalize	backend/aegentra/auth_routes.py	intake
+migration	backend/migrations/versions/0001_foundation.py	backend/migrations/versions/0001_foundation.py	data
+migration	backend/migrations/versions/0002_identity.py	backend/migrations/versions/0002_identity.py	data
+migration	backend/migrations/versions/0003_audit.py	backend/migrations/versions/0003_audit.py	data
+migration	backend/migrations/versions/0004_cases.py	backend/migrations/versions/0004_cases.py	data
+migration	backend/migrations/versions/0005_staging.py	backend/migrations/versions/0005_staging.py	data
+migration	backend/migrations/versions/0006_scan_jobs.py	backend/migrations/versions/0006_scan_jobs.py	data
+migration	backend/migrations/versions/0007_guest_custody.py	backend/migrations/versions/0007_guest_custody.py	data
+migration	backend/migrations/versions/0008_scan_receipts.py	backend/migrations/versions/0008_scan_receipts.py	data
+migration	backend/migrations/versions/0009_release.py	backend/migrations/versions/0009_release.py	data
+migration	backend/migrations/versions/0010_publication_identity.py	backend/migrations/versions/0010_publication_identity.py	data
+migration	backend/migrations/versions/0011_observations.py	backend/migrations/versions/0011_observations.py	data
+migration	backend/migrations/versions/0012_outbox_delivery.py	backend/migrations/versions/0012_outbox_delivery.py	data
+migration	backend/migrations/versions/0013_fixed_bundle.py	backend/migrations/versions/0013_fixed_bundle.py	data
+migration	backend/migrations/versions/0014_incident_states.py	backend/migrations/versions/0014_incident_states.py	data
+migration	backend/migrations/versions/0015_guest_disposal.py	backend/migrations/versions/0015_guest_disposal.py	data
+migration	backend/migrations/versions/0016_incident_containment.py	backend/migrations/versions/0016_incident_containment.py	data
+migration	backend/migrations/versions/0017_audit_payload.py	backend/migrations/versions/0017_audit_payload.py	audit
+migration	backend/migrations/versions/0018_session_membership.py	backend/migrations/versions/0018_session_membership.py	data
+migration	backend/migrations/versions/0019_guest_ami_pin.py	backend/migrations/versions/0019_guest_ami_pin.py	data
+migration	backend/migrations/versions/0020_guest_pin_guard.py	backend/migrations/versions/0020_guest_pin_guard.py	data
+migration	backend/migrations/versions/0021_guest_create_intents.py	backend/migrations/versions/0021_guest_create_intents.py	data
+migration	backend/migrations/versions/0022_guest_physical_operations.py	backend/migrations/versions/0022_guest_physical_operations.py	data
+migration	backend/migrations/versions/0023_case_evidence_page.py	backend/migrations/versions/0023_case_evidence_page.py	data
+migration	backend/migrations/versions/0024_case_timeline.py	backend/migrations/versions/0024_case_timeline.py	data
+postgres_state_constraint	(state = 'VERIFIED' AND kind <> 'TERMINATE') OR (state = 'REQUESTED' AND kind = 'TERMINATE') OR state IN ('PREPARED','UNKNOWN')	backend/migrations/versions/0022_guest_physical_operations.py	data
+postgres_state_constraint	coverage IN ('VERIFIED','UNKNOWN','UNSUPPORTED')	backend/migrations/versions/0008_scan_receipts.py	data
+postgres_state_constraint	grant_type IN ('OWNER', 'ANALYST', 'VIEWER')	backend/migrations/versions/0004_cases.py	data
+postgres_state_constraint	guard IN ('ACTIVE','HOLD_PROMOTION','STOP_SERVING')	backend/migrations/versions/0009_release.py	data
+postgres_state_constraint	mode IN ('SHADOW','ENFORCED','RETIRED')	backend/migrations/versions/0009_release.py	data
+postgres_state_constraint	state IN ('PREPARED','VERIFIED','REQUESTED','UNKNOWN')	backend/migrations/versions/0022_guest_physical_operations.py	data
+postgres_state_constraint	state IN ('RESERVED','VOLUMES_RECORDED','INSTANCE_RECORDED','DETACHED_VERIFIED','DELETE_REQUESTED','QUARANTINED','DISPOSED')	backend/migrations/versions/0015_guest_disposal.py	data
+postgres_state_constraint	state IN ('RESERVED','VOLUMES_RECORDED','INSTANCE_RECORDED','DETACHED_VERIFIED','QUARANTINED','DISPOSED')	backend/migrations/versions/0007_guest_custody.py	data
+postgres_state_constraint	state IN ('RESERVED','VOLUMES_RECORDED','INSTANCE_RECORDED','DETACHED_VERIFIED','QUARANTINED','DISPOSED')	backend/migrations/versions/0015_guest_disposal.py	data
+postgres_state_constraint	state IN ('SELECTED_UNWITNESSED','WITNESSED','PUBLISHED','CANCELED','EXPIRED')	backend/migrations/versions/0009_release.py	data
+postgres_state_constraint	status IN ('COMPLETE','INCOMPLETE')	backend/migrations/versions/0008_scan_receipts.py	data
+postgres_state_constraint	status IN ('GRANTED','REDEEMED','CANCELED','EXPIRED')	backend/migrations/versions/0009_release.py	data
+postgres_state_constraint	status IN ('ISSUED', 'AWAITING_VERIFICATION', 'REJECTED')	backend/migrations/versions/0005_staging.py	data
+postgres_state_constraint	status IN ('OPEN', 'CLOSED')	backend/migrations/versions/0004_cases.py	data
+postgres_state_constraint	status IN ('OPEN','CLOSED')	backend/migrations/versions/0014_incident_states.py	data
+postgres_state_constraint	status IN ('PENDING_SEAL','SEALED')	backend/migrations/versions/0010_publication_identity.py	data
+postgres_state_constraint	status IN ('PREPARED','RECORDED','UNKNOWN')	backend/migrations/versions/0021_guest_create_intents.py	data
+postgres_state_constraint	status IN ('QUEUED','LEASED','PENDING_TRUSTED_VALIDATION','UNKNOWN')	backend/migrations/versions/0006_scan_jobs.py	data
+postgres_table	assets	backend/migrations/versions/0001_foundation.py	data
+postgres_table	audit_entries	backend/migrations/versions/0003_audit.py	data
+postgres_table	audit_streams	backend/migrations/versions/0003_audit.py	data
+postgres_table	browser_sessions	backend/migrations/versions/0002_identity.py	data
+postgres_table	case_evidence	backend/migrations/versions/0004_cases.py	data
+postgres_table	case_memberships	backend/migrations/versions/0004_cases.py	data
+postgres_table	evidence	backend/migrations/versions/0001_foundation.py	data
+postgres_table	guest_attempts	backend/migrations/versions/0007_guest_custody.py	data
+postgres_table	guest_create_intents	backend/migrations/versions/0021_guest_create_intents.py	data
+postgres_table	guest_physical_operations	backend/migrations/versions/0022_guest_physical_operations.py	data
+postgres_table	guest_resources	backend/migrations/versions/0007_guest_custody.py	data
+postgres_table	idempotency_requests	backend/migrations/versions/0003_audit.py	data
+postgres_table	identities	backend/migrations/versions/0002_identity.py	data
+postgres_table	incident_containment_receipts	backend/migrations/versions/0016_incident_containment.py	data
+postgres_table	investigation_cases	backend/migrations/versions/0004_cases.py	data
+postgres_table	login_challenges	backend/migrations/versions/0002_identity.py	data
+postgres_table	organizations	backend/migrations/versions/0001_foundation.py	data
+postgres_table	outbox_events	backend/migrations/versions/0003_audit.py	data
+postgres_table	release_endorsements	backend/migrations/versions/0009_release.py	data
+postgres_table	release_grants	backend/migrations/versions/0009_release.py	data
+postgres_table	release_observations	backend/migrations/versions/0011_observations.py	data
+postgres_table	release_org_guards	backend/migrations/versions/0009_release.py	data
+postgres_table	release_publications	backend/migrations/versions/0009_release.py	data
+postgres_table	release_selections	backend/migrations/versions/0009_release.py	data
+postgres_table	release_targets	backend/migrations/versions/0009_release.py	data
+postgres_table	scan_jobs	backend/migrations/versions/0006_scan_jobs.py	data
+postgres_table	scan_receipts	backend/migrations/versions/0008_scan_receipts.py	data
+postgres_table	staging_parts	backend/migrations/versions/0005_staging.py	data
+postgres_table	staging_uploads	backend/migrations/versions/0005_staging.py	data
+react_component	App	frontend/src/App.tsx	ai,console
+react_component	AuthPanel	frontend/src/AuthPanel.tsx	console
+react_component	CaseEvidencePanel	frontend/src/CaseEvidencePanel.tsx	ai,console
+react_component	CaseTimelinePanel	frontend/src/CaseTimelinePanel.tsx	console
+react_component	CasesPanel	frontend/src/CasesPanel.tsx	console
+react_component	OperationsPanel	frontend/src/OperationsPanel.tsx	console,operations
+runtime_definition	infra/bin/aegentra.ts	infra/bin/aegentra.ts	cloud
+runtime_definition	infra/lib/analysis-stack.ts	infra/lib/analysis-stack.ts	cloud
+runtime_definition	infra/lib/security-stack.ts	infra/lib/security-stack.ts	cloud
+runtime_definition	infra/lib/workload-stack.ts	infra/lib/workload-stack.ts	cloud,origin
+runtime_definition	ops/aegentra-offline-guest.service.example	ops/aegentra-offline-guest.service.example	guest
+runtime_definition	ops/aegentra-outbox.service.example	ops/aegentra-outbox.service.example	audit
+runtime_definition	ops/aegentra-outbox.timer.example	ops/aegentra-outbox.timer.example	audit
+state_enum	CaseTimelineKind	backend/aegentra/case_contracts.py	case,export
+state_enum	CoverageState	backend/aegentra/coverage.py	scan
+state_enum	RecoveryStatus	backend/aegentra/recovery_preflight.py	privacy,recovery
+transition_map	_OPERATOR_TRANSITIONS	backend/aegentra/incident_state.py	incident
