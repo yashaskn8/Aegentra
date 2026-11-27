@@ -290,6 +290,103 @@
         "scope": "Retained case audit records with verifiable coordinates. Unattributable legacy records are excluded."
       },
       "production_qualification": "BLOCKED; independent D9 P0 verification, retention controls and Matrix C oracles remain outstanding"
+    },
+    {
+      "id": "SA11-P08-036",
+      "source_section": "6. Case exports, page 8",
+      "status": "implemented_ci_passed_at_recorded_commit",
+      "baseline_commit": "8ad7bf4c80ce08b5cccf2559fd4d0b3d4e53cf40",
+      "acceptance": [
+        "Require an explicit evidence metadata projection through the scoped case route",
+        "Send at most 100 linked metadata rows per response in bounded batches",
+        "Recheck the authenticated session and case membership and withhold the end record when an interrupted export cannot complete"
+      ],
+      "code": [
+        "backend/aegentra/auth_routes.py",
+        "backend/aegentra/case_store.py"
+      ],
+      "tests": [
+        "backend/tests/test_case_integration.py"
+      ],
+      "evidence": {
+        "implementation_commit": "14926f6a8db3c6c08f2519efaf4aa2936c49302b",
+        "focused_validation": "Native PostgreSQL case-scope regression with four revision fixtures. Initial API returned 404. The accepted suite includes continuation, case denial and an ACL change after the first streamed body.",
+        "remote_ci": {
+          "commit": "5d5658cd757da05b711fbeaaaac305660b710bbf",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45961562239,
+            "frontend": 45961562269,
+            "infra": 45961562299,
+            "security": 45961562225
+          }
+        }
+      },
+      "production_qualification": "BLOCKED. Additional export projections, retention lifecycle and independent D9 P0 are open."
+    },
+    {
+      "id": "SA11-P13-recovery-inventory-validation",
+      "source_section": "9. Recovery, page 13, SA11-P13-010, SA11-P13-012 and SA11-P13-015",
+      "status": "implemented_ci_passed_at_recorded_commit",
+      "baseline_commit": "8ad7bf4c80ce08b5cccf2559fd4d0b3d4e53cf40",
+      "acceptance": [
+        "Treat omitted serving or notification disablement as a blocker",
+        "Require genuine boolean attestation values, non-nil identities and a positive monotonic external generation",
+        "Return only an inventory assessment"
+      ],
+      "code": [
+        "backend/aegentra/recovery_preflight.py"
+      ],
+      "tests": [
+        "backend/tests/test_recovery_preflight.py"
+      ],
+      "evidence": {
+        "implementation_commit": "3c237097f3b3e7328c631cb0ce148bc11123d4d6",
+        "before": "7 failures and 18 passes against the previous assessor",
+        "after": "28 recovery tests passed, including separate serving and notification requirements",
+        "remote_ci": {
+          "commit": "5d5658cd757da05b711fbeaaaac305660b710bbf",
+          "conclusion": "success",
+          "runs": {
+            "backend": 45961562239,
+            "frontend": 45961562269,
+            "infra": 45961562299,
+            "security": 45961562225
+          }
+        }
+      },
+      "production_qualification": "BLOCKED. Independent fact collection, custody, signed re-enrollment and live restoration evidence are open."
+    },
+    {
+      "id": "SA11-P08-case-read-and-incident-revision",
+      "source_section": "6 and 8, SA11-P08-035, SA11-P08-041 and SA11-P11-028",
+      "status": "implemented_locally_verified",
+      "baseline_commit": "5d5658cd757da05b711fbeaaaac305660b710bbf",
+      "acceptance": [
+        "Authorize a single-record metadata read in the same SQL statement used to retrieve its evidence",
+        "Fence scoped triage and containment requests on their case revision",
+        "Discard stale controls and refresh from the authorized case list without replaying a mutation"
+      ],
+      "code": [
+        "backend/aegentra/case_store.py",
+        "backend/aegentra/incident_state.py",
+        "backend/aegentra/auth_routes.py",
+        "frontend/src/CasesPanel.tsx"
+      ],
+      "tests": [
+        "backend/tests/test_case_integration.py",
+        "frontend/src/CasesPanel.test.tsx",
+        "frontend/e2e/console.pw.ts"
+      ],
+      "evidence": {
+        "implementation_commits": [
+          "28f6edfcce237b187c8880ecb9446a404a284a2f",
+          "9ed852240622a5520d7dd82bab7df6649db44530"
+        ],
+        "before": "Two case-scope SQL reads for one linked evidence record. The case API omitted a revision ETag. A conflict cleared the case list until a manual refresh.",
+        "after": "One case-scope SQL read for the same fixture. A strong stale If-Match receives HTTP 412. Chromium verified the authorized refresh and one attempted mutation."
+      },
+      "production_qualification": "BLOCKED. Recovery and later incident transitions require independent evidence and authority."
     }
   ]
 }
