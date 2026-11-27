@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from hypothesis import example, given, settings, strategies as st
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -32,11 +33,14 @@ class FakeVerifiedProvider:
     not (os.getenv("AEGENTRA_TEST_ADMIN_URL") and os.getenv("AEGENTRA_TEST_APP_URL")),
     reason="native PostgreSQL integration URLs not provided",
 )
-def test_login_sessions_csrf_and_tenant_assets() -> None:
-    asyncio.run(_exercise_auth())
+@settings(max_examples=5, derandomize=True, deadline=None)
+@given(replays=st.integers(min_value=2, max_value=6))
+@example(replays=1)
+def test_login_sessions_csrf_and_tenant_assets(replays: int) -> None:
+    asyncio.run(_exercise_auth(replays))
 
 
-async def _exercise_auth() -> None:
+async def _exercise_auth(replays: int) -> None:
     admin = make_engine(os.environ["AEGENTRA_TEST_ADMIN_URL"])
     app_engine = make_engine(os.environ["AEGENTRA_TEST_APP_URL"])
     org = uuid4()
@@ -89,6 +93,7 @@ async def _exercise_auth() -> None:
             follow_redirects=False,
         ) as client:
             assert (await client.get("/v1/assets")).status_code == 401
+            assert (await client.get(f"/v1/assets/{foreign_asset}")).status_code == 401
             start = await client.get("/v1/auth/login")
             assert start.status_code == 302
             params = parse_qs(urlsplit(start.headers["location"]).query)
@@ -125,13 +130,14 @@ async def _exercise_auth() -> None:
             )
             assert created.status_code == 201
             assert created.json()["slug"] == "safe-app"
-            repeated = await client.post(
-                "/v1/assets",
-                json={"slug": "safe-app", "criticality": "LOW"},
-                headers=headers,
-            )
-            assert repeated.status_code == 201
-            assert repeated.json()["id"] == created.json()["id"]
+            for _ in range(replays):
+                repeated = await client.post(
+                    "/v1/assets",
+                    json={"slug": "safe-app", "criticality": "LOW"},
+                    headers=headers,
+                )
+                assert repeated.status_code == 201
+                assert repeated.json() == created.json()
             assert (await client.post(
                 "/v1/assets",
                 json={"slug": "different-app", "criticality": "LOW"},
@@ -145,6 +151,17 @@ async def _exercise_auth() -> None:
             visible = await client.get("/v1/assets")
             assert visible.status_code == 200
             assert [row["slug"] for row in visible.json()["items"]] == ["safe-app"]
+            asset_path = f"/v1/assets/{created.json()['id']}"
+            detail = await client.get(asset_path)
+            assert detail.status_code == 200
+            assert detail.headers["cache-control"] == "no-store"
+            assert detail.json() == created.json()
+            foreign = await client.get(f"/v1/assets/{foreign_asset}")
+            missing = await client.get(f"/v1/assets/{uuid4()}")
+            assert foreign.status_code == missing.status_code == 404
+            assert foreign.json() == missing.json()
+            assert foreign.headers["cache-control"] == missing.headers["cache-control"] == "no-store"
+            assert (await client.get("/v1/assets/invalid-uuid")).status_code == 422
 
             async with admin.connect() as connection:
                 from sqlalchemy import select
@@ -168,6 +185,7 @@ async def _exercise_auth() -> None:
                     update(Identity).where(Identity.id == person).values(active=False)
                 )
             assert (await client.get("/v1/me")).status_code == 401
+            assert (await client.get(asset_path)).status_code == 401
             # Re-enabling an identity cannot resurrect the same browser token.
             async with admin.begin() as session:
                 await session.execute(

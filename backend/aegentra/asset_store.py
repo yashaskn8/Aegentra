@@ -17,6 +17,10 @@ async def list_assets(session: AsyncSession, *, org_id: UUID) -> list[Asset]:
     return list(result.all())
 
 
+async def get_asset(session: AsyncSession, *, org_id: UUID, asset_id: UUID) -> Asset | None:
+    return await session.get(Asset, (org_id, asset_id))
+
+
 async def create_asset(
     session: AsyncSession,
     *,

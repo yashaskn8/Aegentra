@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from aegentra.asset_store import list_assets
+from aegentra.asset_store import get_asset, list_assets
 from aegentra.audit import IdempotencyConflict, register_asset
 from aegentra.content_manifest import ManifestError, parse_manifest_json
 from aegentra.staging import UploadConflict, UploadUnavailable, create_ticket, finalize_ticket
@@ -38,6 +38,12 @@ class AssetInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     slug: str = Field(min_length=3, max_length=80, pattern=r"^[a-z][a-z0-9-]+$")
     criticality: str = Field(pattern=r"^(LOW|MEDIUM|HIGH)$")
+
+
+class AssetMetadata(BaseModel):
+    id: UUID
+    slug: str
+    criticality: str
 
 
 class CaseInput(BaseModel):
@@ -197,6 +203,17 @@ def enable_auth(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         response.headers["Cache-Control"] = "no-store"
         return result
+
+    @router.get("/assets/{asset_id}")
+    async def asset(asset_id: UUID, response: Response, user: Principal = Depends(principal)) -> AssetMetadata:
+        async with organization_session(sessions, user.org_id) as session:
+            item = await get_asset(session, org_id=user.org_id, asset_id=asset_id)
+            if item is None:
+                raise HTTPException(
+                    status_code=404, detail="asset not found", headers={"Cache-Control": "no-store"},
+                )
+            response.headers["Cache-Control"] = "no-store"
+            return AssetMetadata(id=item.id, slug=item.slug, criticality=item.criticality)
 
     @router.get("/cases")
     async def cases(response: Response, user: Principal = Depends(principal)) -> dict:
