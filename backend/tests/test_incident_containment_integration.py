@@ -12,6 +12,8 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from aegentra.audit import record_event
+from aegentra.case_timeline import list_case_timeline
 from aegentra.containment_archive import ContainmentProofArchive
 from test_containment_archive import FakeS3, FakeSTS
 from aegentra.db import (
@@ -123,6 +125,13 @@ async def _exercise() -> None:
                     ).values(status="CONTAINED", revision=4)
                 )
 
+        with pytest.raises(DBAPIError, match="independent incident custody"):
+            async with organization_session(async_sessionmaker(app), org) as s:
+                await record_event(
+                    s, org_id=org, actor_id=actor, stream="cases", event_type="INCIDENT_CONTAINMENT_VERIFIED",
+                    body={"case_id": str(case_id), "case_revision": 4},
+                )
+
         # A missing gateway ACK cannot become a case containment success.
         with pytest.raises(ContainmentStateRejected):
             async with release_session(factory, org) as s:
@@ -142,6 +151,12 @@ async def _exercise() -> None:
             assert await record_independent_containment(s, **args) == "CONTAINED"
         async with release_session(factory, org) as s:
             assert await record_independent_containment(s, **args) == "CONTAINED"
+
+        async with organization_session(async_sessionmaker(app), org) as s:
+            page = await list_case_timeline(s, org_id=org, identity_id=actor, case_id=case_id)
+            assert len(page.items) == 1
+            assert page.items[0].kind == "INCIDENT_CONTAINMENT_VERIFIED" and page.items[0].revision == 4
+            assert page.items[0].evidence_id is None and page.next_cursor is None
 
         async with admin.connect() as s:
             case = (await s.execute(

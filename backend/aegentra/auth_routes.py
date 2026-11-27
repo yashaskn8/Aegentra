@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+from typing import Annotated
 from uuid import UUID
 from pydantic import ValidationError
 
@@ -13,6 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from aegentra.asset_store import get_asset, list_assets
 from aegentra.audit import IdempotencyConflict, register_asset
+from aegentra.audit_reconcile import AuditGap
+from aegentra.case_contracts import (
+    CaseList, CaseSummary, CaseTimelinePage, EvidenceLink, EvidenceMetadata, EvidencePage,
+    IncidentTransition,
+)
+from aegentra.case_timeline import InvalidTimelineCursor, TIMELINE_CURSOR_LIMIT, list_case_timeline
 from aegentra.content_manifest import ManifestError, parse_manifest_json
 from aegentra.staging import UploadConflict, UploadUnavailable, create_ticket, finalize_ticket
 from aegentra.staging_signer import StagingSigner
@@ -32,6 +39,9 @@ from aegentra.persistence import organization_session
 
 SESSION_COOKIE = "__Host-aegentra"
 LOGIN_COOKIE = "__Host-aegentra-login"
+TimelineCursor = Annotated[str | None, Query(min_length=1, max_length=TIMELINE_CURSOR_LIMIT,
+                                           pattern=r"^[A-Za-z0-9_-]+$")]
+TimelinePageSize = Annotated[int, Query(ge=1, le=100)]
 
 
 class AssetInput(BaseModel):
@@ -215,7 +225,7 @@ def enable_auth(
             response.headers["Cache-Control"] = "no-store"
             return AssetMetadata(id=item.id, slug=item.slug, criticality=item.criticality)
 
-    @router.get("/cases")
+    @router.get("/cases", response_model=CaseList)
     async def cases(response: Response, user: Principal = Depends(principal)) -> dict:
         response.headers["Cache-Control"] = "no-store"
         async with organization_session(sessions, user.org_id) as session:
@@ -245,7 +255,7 @@ def enable_auth(
         response.headers["Cache-Control"] = "no-store"
         return result
 
-    @router.post("/cases", status_code=201)
+    @router.post("/cases", status_code=201, response_model=CaseSummary)
     async def add_case(
         body: CaseInput,
         response: Response,
@@ -267,7 +277,7 @@ def enable_auth(
         response.headers["Cache-Control"] = "no-store"
         return result
 
-    @router.get("/cases/{case_id}")
+    @router.get("/cases/{case_id}", response_model=CaseSummary)
     async def case_details(
         case_id: UUID, response: Response,
         user: Principal = Depends(principal),
@@ -288,7 +298,7 @@ def enable_auth(
         response.headers["Cache-Control"] = "no-store"
         return result
 
-    @router.post("/cases/{case_id}/transition")
+    @router.post("/cases/{case_id}/transition", response_model=IncidentTransition)
     async def transition_incident_case(
         case_id: UUID, body: IncidentTransitionInput, response: Response,
         user: Principal = Depends(mutation_principal),
@@ -309,7 +319,7 @@ def enable_auth(
         response.headers["Cache-Control"] = "no-store"
         return result
 
-    @router.get("/cases/{case_id}/evidence")
+    @router.get("/cases/{case_id}/evidence", response_model=EvidencePage)
     async def case_evidence_list(
         case_id: UUID, response: Response,
         cursor: str | None = Query(default=None, min_length=1, max_length=256,
@@ -330,7 +340,7 @@ def enable_auth(
         response.headers["Cache-Control"] = "no-store"
         return result
 
-    @router.post("/cases/{case_id}/evidence", status_code=201)
+    @router.post("/cases/{case_id}/evidence", status_code=201, response_model=EvidenceLink)
     async def add_case_evidence(
         case_id: UUID, body: LinkEvidenceInput, response: Response,
         user: Principal = Depends(mutation_principal),
@@ -350,7 +360,7 @@ def enable_auth(
         response.headers["Cache-Control"] = "no-store"
         return result
 
-    @router.get("/cases/{case_id}/evidence/{evidence_id}/meta")
+    @router.get("/cases/{case_id}/evidence/{evidence_id}/meta", response_model=EvidenceMetadata)
     async def case_evidence_meta(
         case_id: UUID, evidence_id: UUID, response: Response,
         user: Principal = Depends(principal),
@@ -365,6 +375,41 @@ def enable_auth(
             raise HTTPException(status_code=404, detail="evidence unavailable") from exc
         response.headers["Cache-Control"] = "no-store"
         return result
+
+    async def get_timeline(
+        case_id: UUID, response: Response, user: Principal, cursor: str | None, page_size: int,
+        evidence_id: UUID | None = None,
+    ) -> CaseTimelinePage:
+        no_store = {"Cache-Control": "no-store"}
+        try:
+            async with organization_session(sessions, user.org_id) as session:
+                page = await list_case_timeline(
+                    session, org_id=user.org_id, identity_id=user.identity_id, case_id=case_id,
+                    evidence_id=evidence_id, cursor=cursor, page_size=page_size,
+                )
+        except CaseNotFound as exc:
+            raise HTTPException(status_code=404, detail="timeline unavailable", headers=no_store) from exc
+        except InvalidTimelineCursor as exc:
+            raise HTTPException(status_code=422, detail="invalid timeline cursor", headers=no_store) from exc
+        except AuditGap as exc:
+            raise HTTPException(status_code=503, detail="timeline record unavailable", headers=no_store) from exc
+        response.headers.update(no_store)
+        return page
+
+    @router.get("/cases/{case_id}/timeline")
+    async def case_timeline(
+        case_id: UUID, response: Response, cursor: TimelineCursor = None, page_size: TimelinePageSize = 50,
+        user: Principal = Depends(principal),
+    ) -> CaseTimelinePage:
+        return await get_timeline(case_id, response, user, cursor, page_size)
+
+    @router.get("/cases/{case_id}/evidence/{evidence_id}/timeline")
+    async def case_evidence_timeline(
+        case_id: UUID, evidence_id: UUID, response: Response,
+        cursor: TimelineCursor = None, page_size: TimelinePageSize = 50,
+        user: Principal = Depends(principal),
+    ) -> CaseTimelinePage:
+        return await get_timeline(case_id, response, user, cursor, page_size, evidence_id)
 
     # Without an explicitly configured, scoped S3 staging signer there is
     # no upload endpoint or false appearance of functioning evidence intake.

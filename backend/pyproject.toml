@@ -66,7 +66,12 @@ pythonVersion = "3.12"
 typeCheckingMode = "basic"
 include = [
   "aegentra/asset_store.py",
+  "aegentra/audit_reconcile.py",
+  "aegentra/auth_routes.py",
   "aegentra/bounded_json.py",
+  "aegentra/case_contracts.py",
+  "aegentra/case_store.py",
+  "aegentra/case_timeline.py",
   "aegentra/content_manifest.py",
   "aegentra/coverage.py",
   "aegentra/intake.py",

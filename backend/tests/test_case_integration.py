@@ -5,6 +5,7 @@ import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import httpx
@@ -53,7 +54,9 @@ async def sign_in(client: httpx.AsyncClient, code: str) -> dict:
 @given(stale_revision=st.sampled_from([3, 4, 100]))
 @example(stale_revision=1)
 def test_cases_are_membership_scoped_and_evidence_is_asset_bound(stale_revision: int) -> None:
-    asyncio.run(exercise_case_scope(stale_revision))
+    with patch("aegentra.audit.datetime") as audit_clock:
+        audit_clock.now.return_value = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        asyncio.run(exercise_case_scope(stale_revision))
 
 
 async def exercise_case_scope(stale_revision: int) -> None:
@@ -132,6 +135,10 @@ async def exercise_case_scope(stale_revision: int) -> None:
             sessions=async_sessionmaker(app_engine, expire_on_commit=False),
             provider=FakeProvider(),  # type: ignore[arg-type]
         )
+        timeline_schema = api.openapi()["paths"]["/v1/cases/{case_id}/timeline"]["get"]
+        assert timeline_schema["responses"]["200"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/CaseTimelinePage",
+        }
         transport = httpx.ASGITransport(app=api)
         async with httpx.AsyncClient(
             transport=transport, base_url="https://aegentra.test",
@@ -263,6 +270,39 @@ async def exercise_case_scope(stale_revision: int) -> None:
             pages = first_page.json()["items"] + second_page.json()["items"]
             assert [item["id"] for item in pages] == [str(i) for i in sorted((ev_a, ev_after_triage))]
             assert [datetime.fromisoformat(item["linked_at"]) for item in pages] == [tied_at, tied_at]
+            timeline = f"/v1/cases/{case_id}/timeline"
+            assert (await analyst_client.get("/openapi.json")).status_code == 404
+            first = await analyst_client.get(timeline, params={"page_size": 2})
+            assert first.status_code == 200, first.text
+            assert first.headers["cache-control"] == "no-store"
+            cursor = first.json()["next_cursor"]
+            assert cursor
+            collected = first.json()["items"]
+            while cursor:
+                assert len(collected) < 5
+                page = await analyst_client.get(timeline, params={"page_size": 2, "cursor": cursor})
+                assert page.status_code == 200, page.text
+                collected.extend(page.json()["items"])
+                cursor = page.json()["next_cursor"]
+            assert len(collected) == 5
+            assert {item["kind"] for item in collected} == {
+                "CASE_CREATED", "CASE_EVIDENCE_LINKED", "INCIDENT_TRIAGED", "INCIDENT_CONTAINMENT_REQUESTED",
+            }
+            assert all(set(item) == {"id", "occurred_at", "kind", "evidence_id", "revision"} for item in collected)
+            assert len({item["occurred_at"] for item in collected}) == 1
+            assert [item["id"] for item in collected] == sorted({item["id"] for item in collected})
+            assert {item["evidence_id"] for item in collected if item["kind"] == "CASE_EVIDENCE_LINKED"} == {
+                str(ev_a), str(ev_after_triage),
+            }
+            evidence_timeline = await analyst_client.get(f"/v1/cases/{case_id}/evidence/{ev_a}/timeline")
+            assert evidence_timeline.status_code == 200, evidence_timeline.text
+            assert [item["evidence_id"] for item in evidence_timeline.json()["items"]] == [str(ev_a)]
+            assert (await analyst_client.get(f"/v1/cases/{case_id}/evidence/{ev_b}/timeline")).status_code == 404
+            assert (await analyst_client.get(timeline, params={"cursor": "bad-cursor"})).status_code == 422
+            wrong_scope = await analyst_client.get(
+                f"/v1/cases/{case_id}/evidence/{ev_a}/timeline", params={"cursor": first.json()["next_cursor"]},
+            )
+            assert wrong_scope.status_code == 422
             assert (await analyst_client.get(
                 f"/v1/cases/{case_id}/evidence",
                 params={"cursor": first_page.json()["next_cursor"] + "garbage"},
@@ -279,6 +319,9 @@ async def exercise_case_scope(stale_revision: int) -> None:
                 follow_redirects=False,
             ) as viewer_client:
                 viewer_me = await sign_in(viewer_client, "viewer")
+                denied_timeline = await viewer_client.get(timeline, params={"cursor": first.json()["next_cursor"]})
+                assert denied_timeline.status_code == 404
+                assert denied_timeline.headers["cache-control"] == "no-store"
                 assert (await viewer_client.get("/v1/cases")).json()["items"] == []
                 assert (await viewer_client.get("/v1/operations/scans")).status_code == 403
                 assert (await viewer_client.get(f"/v1/cases/{case_id}")).status_code == 404
@@ -300,6 +343,29 @@ async def exercise_case_scope(stale_revision: int) -> None:
                     f"/v1/cases/{case_id}/evidence",
                     json={"evidence_id": str(ev_a)}, headers=viewer_headers,
                 )).status_code == 403
+
+                async with admin.begin() as conn:
+                    await conn.execute(insert(CaseMembership).values(
+                        org_id=org, case_id=UUID(case_id), identity_id=viewer, grant_type="VIEWER",
+                    ))
+                viewer_page = await viewer_client.get(timeline, params={"page_size": 1})
+                assert viewer_page.status_code == 200 and viewer_page.json()["next_cursor"]
+                async with admin.begin() as conn:
+                    await conn.execute(delete(CaseMembership).where(
+                        CaseMembership.org_id == org, CaseMembership.case_id == UUID(case_id),
+                        CaseMembership.identity_id == viewer,
+                    ))
+                revoked = await viewer_client.get(timeline, params={"cursor": viewer_page.json()["next_cursor"]})
+                assert revoked.status_code == 404 and revoked.headers["cache-control"] == "no-store"
+
+            async with admin.begin() as conn:
+                await conn.execute(delete(CaseEvidence).where(
+                    CaseEvidence.org_id == org, CaseEvidence.case_id == UUID(case_id), CaseEvidence.evidence_id == ev_a,
+                ))
+            restricted = await analyst_client.get(timeline)
+            assert restricted.status_code == 200 and len(restricted.json()["items"]) == 4
+            assert str(ev_a) not in restricted.text
+            assert (await analyst_client.get(f"/v1/cases/{case_id}/evidence/{ev_a}/timeline")).status_code == 404
     finally:
         try:
             async with admin.begin() as session:

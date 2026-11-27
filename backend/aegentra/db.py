@@ -4,7 +4,7 @@ from __future__ import annotations
 from uuid import UUID, uuid4
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer
+from sqlalchemy import BigInteger, Boolean, Computed, DateTime, Index, Integer, text
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, LargeBinary, String, Uuid, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -142,8 +142,18 @@ class AuditEntry(Base):
     body_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     payload_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    timeline_case_id: Mapped[UUID | None] = mapped_column(Uuid, Computed(
+        "(public.aegentra_timeline_scope_v1(stream, event_type, payload_bytes, body_hash))[1]", persisted=True,
+    ))
+    timeline_evidence_id: Mapped[UUID | None] = mapped_column(Uuid, Computed(
+        "(public.aegentra_timeline_scope_v1(stream, event_type, payload_bytes, body_hash))[2]", persisted=True,
+    ))
 
     __table_args__ = (
+        Index(
+            "ix_audit_case_timeline", "org_id", "timeline_case_id", "created_at", "event_hash",
+            unique=True, postgresql_where=text("timeline_case_id IS NOT NULL"),
+        ),
         ForeignKeyConstraint(["org_id", "stream"], ["audit_streams.org_id", "audit_streams.stream"]),
         CheckConstraint("octet_length(previous_hash) = 32", name="audit_prev_length"),
         CheckConstraint("octet_length(event_hash) = 32", name="audit_event_length"),
