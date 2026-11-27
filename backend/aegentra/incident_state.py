@@ -24,6 +24,10 @@ class IncidentConflict(ValueError):
     pass
 
 
+class IncidentRevisionConflict(IncidentConflict):
+    pass
+
+
 _OPERATOR_TRANSITIONS = {
     ("OPEN", "TRIAGED"),
     ("TRIAGED", "CONTAINMENT_REQUESTED"),
@@ -59,7 +63,7 @@ async def request_incident_transition(
     }:
         raise IncidentUnavailable("incident case unavailable")
     if case.revision != expected_revision:
-        raise IncidentConflict("stale incident revision")
+        raise IncidentRevisionConflict("stale incident revision")
     if (case.status, next_status) not in _OPERATOR_TRANSITIONS:
         raise IncidentConflict("transition is not an authorized incident step")
 

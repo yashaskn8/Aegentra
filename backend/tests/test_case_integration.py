@@ -238,6 +238,31 @@ async def exercise_case_scope(stale_revision: int) -> None:
             assert response.status_code == 200, response.text
             assert response.json()["enforcement_effect"] == "NONE"
             assert response.json()["revision"] == 2
+            current = await analyst_client.get(f"/v1/cases/{case_id}")
+            assert current.headers.get("etag") == f'"{case_id}:2"'
+            stale_header = await analyst_client.post(
+                f"/v1/cases/{case_id}/transition",
+                json={"status": "CONTAINMENT_REQUESTED"},
+                headers={**headers, "If-Match": f'"{case_id}:1"'},
+            )
+            assert stale_header.status_code == 412
+            assert stale_header.headers["cache-control"] == "no-store"
+            for invalid in ("*", f'W/"{case_id}:2"'):
+                invalid_header = await analyst_client.post(
+                    f"/v1/cases/{case_id}/transition",
+                    json={"status": "CONTAINMENT_REQUESTED"},
+                    headers={**headers, "If-Match": invalid},
+                )
+                assert invalid_header.status_code == 422
+            assert (await analyst_client.post(
+                f"/v1/cases/{case_id}/transition",
+                json={"status": "CONTAINMENT_REQUESTED", "expected_revision": 2},
+                headers={**headers, "If-Match": f'"{case_id}:1"'},
+            )).status_code == 422
+            assert (await analyst_client.post(
+                f"/v1/cases/{case_id}/transition", json={"status": "CONTAINMENT_REQUESTED"},
+                headers=headers,
+            )).status_code == 428
             stale = await analyst_client.post(
                 f"/v1/cases/{case_id}/transition",
                 json={"status": "CONTAINMENT_REQUESTED", "expected_revision": stale_revision},
@@ -246,8 +271,8 @@ async def exercise_case_scope(stale_revision: int) -> None:
             assert stale.status_code == 409
             response = await analyst_client.post(
                 f"/v1/cases/{case_id}/transition",
-                json={"status": "CONTAINMENT_REQUESTED", "expected_revision": 2},
-                headers=headers,
+                json={"status": "CONTAINMENT_REQUESTED"},
+                headers={**headers, "If-Match": current.headers["etag"]},
             )
             assert response.status_code == 200, response.text
             assert response.json()["status"] == "CONTAINMENT_REQUESTED"

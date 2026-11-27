@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import re
 from collections.abc import AsyncIterator
 from typing import Annotated, Literal
 from uuid import UUID
@@ -33,7 +34,7 @@ from aegentra.oidc import (
     csrf_for_session, random_token,
 )
 from aegentra.incident_state import (
-    IncidentConflict, IncidentUnavailable, request_incident_transition,
+    IncidentConflict, IncidentRevisionConflict, IncidentUnavailable, request_incident_transition,
 )
 from aegentra.operations_projection import list_scan_status
 from aegentra.persistence import organization_session
@@ -70,7 +71,7 @@ class CaseInput(BaseModel):
 class IncidentTransitionInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     status: str = Field(pattern=r"^(TRIAGED|CONTAINMENT_REQUESTED)$")
-    expected_revision: int = Field(ge=1)
+    expected_revision: int | None = Field(default=None, ge=1, le=2147483647)
 
 
 class LinkEvidenceInput(BaseModel):
@@ -301,27 +302,45 @@ def enable_auth(
         except CaseNotFound as exc:
             raise HTTPException(status_code=404, detail="case unavailable") from exc
         response.headers["Cache-Control"] = "no-store"
+        response.headers["ETag"] = f'"{case_id}:{result["revision"]}"'
         return result
 
     @router.post("/cases/{case_id}/transition", response_model=IncidentTransition)
     async def transition_incident_case(
         case_id: UUID, body: IncidentTransitionInput, response: Response,
+        if_match: Annotated[list[str] | None, Header()] = None,
         user: Principal = Depends(mutation_principal),
     ) -> dict:
         if user.role not in {"ADMIN", "ANALYST"}:
             raise HTTPException(status_code=403, detail="incident triage not permitted")
+        no_store = {"Cache-Control": "no-store"}
+        expected_revision = body.expected_revision
+        if if_match is not None:
+            header = if_match[0].strip() if len(if_match) == 1 else ""
+            tag = re.fullmatch(fr'"{case_id}:([1-9][0-9]{{0,9}})"', header)
+            if tag is None or int(tag[1]) > 2147483647:
+                raise HTTPException(status_code=422, detail="expected a case revision tag", headers=no_store)
+            revision = int(tag[1])
+            if expected_revision is not None and expected_revision != revision:
+                raise HTTPException(status_code=422, detail="case revisions disagree", headers=no_store)
+            expected_revision = revision
+        if expected_revision is None:
+            raise HTTPException(status_code=428, detail="case revision required", headers=no_store)
         try:
             async with organization_session(sessions, user.org_id) as session:
                 result = await request_incident_transition(
                     session, org_id=user.org_id, identity_id=user.identity_id,
                     case_id=case_id, next_status=body.status,
-                    expected_revision=body.expected_revision,
+                    expected_revision=expected_revision,
                 )
         except IncidentUnavailable as exc:
             raise HTTPException(status_code=404, detail="incident unavailable") from exc
+        except IncidentRevisionConflict as exc:
+            raise HTTPException(status_code=412 if if_match is not None else 409,
+                                detail=str(exc), headers=no_store) from exc
         except IncidentConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-        response.headers["Cache-Control"] = "no-store"
+        response.headers.update(no_store)
         return result
 
     @router.get("/cases/{case_id}/evidence", response_model=EvidencePage)

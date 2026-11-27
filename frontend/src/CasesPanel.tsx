@@ -17,6 +17,7 @@ type CaseSummary = {
 export default function CasesPanel({ user, assets, onAccessLost }: { user: User; assets: Asset[]; onAccessLost: () => void }) {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [caseListState, setCaseListState] = useState<"loading" | "loaded" | "unavailable">("loading");
+  const [caseListRequest, setCaseListRequest] = useState(0);
   const [assetId, setAssetId] = useState("");
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
@@ -48,7 +49,7 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
       if (!controller.signal.aborted) setCaseListState("unavailable");
     });
     return () => controller.abort();
-  }, []);
+  }, [caseListRequest]);
 
   function toggleView(caseId: string, view: CaseView) {
     setSelection((current) => current?.caseId === caseId && current.view === view ? null : { caseId, view });
@@ -109,11 +110,9 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": user.csrf_token,
+          "If-Match": `"${item.id}:${item.revision}"`,
         },
-        body: JSON.stringify({
-          status: nextStatus,
-          expected_revision: item.revision,
-        }),
+        body: JSON.stringify({ status: nextStatus }),
       });
       if (response.status === 401 || response.status === 403) {
         onAccessLost();
@@ -124,17 +123,17 @@ export default function CasesPanel({ user, assets, onAccessLost }: { user: User;
         setCases([]);
         setTruncated(false);
         setSelection(null);
+        setCaseListState("loading");
+        setCaseListRequest((request) => request + 1);
+        setError("The incident changed. Review the latest case state before trying again.");
+        return;
       }
       if (response.status === 404) {
         removeUnavailableCase(item.id);
         return;
       }
       if (!response.ok) {
-        throw new Error(
-          response.status === 409 || response.status === 412
-            ? "The incident changed. Refresh this page before trying again."
-            : "Incident transition could not be recorded.",
-        );
+        throw new Error("Incident transition could not be recorded.");
       }
       const changed: unknown = await response.json();
       if (

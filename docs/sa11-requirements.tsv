@@ -369,13 +369,13 @@ SA11-P08-031	8	6 route table scans	implemented_and_verified	lease	Reject client 
 SA11-P08-032	8	6 route table cases	implemented_and_verified	case	Require case membership and case-scoped evidence metadata grant.	Bounded to the cited local contract and regression scope.
 SA11-P08-033	8	6 route table cases	partially_implemented	case	Apply asset/class/projection scope to metadata and timelines.	Remaining runtime, evidence or integration work described by the evidence profile.
 SA11-P08-034	8	6 route table cases	pending	case	Serve authorized bounded excerpts.	Criterion lacks an implementation or a complete local consumer.
-SA11-P08-035	8	6 route table cases	implemented_and_verified	case	Reauthorize scoped pages and require a case reference.	Bounded to the cited local contract and regression scope.
+SA11-P08-035	8	6 route table cases	implemented_and_verified	case	Reauthorize scoped pages and require a case reference.	Case timeline and evidence pages reauthorize. Linked metadata reads test a single SQL snapshot for membership and evidence.
 SA11-P08-036	8	6 route table cases	implemented_and_verified	export	Provide explicitly scoped export through a reauthorized server stream.	Current scope is linked evidence metadata. Additional projections require a separate grant model.
 SA11-P08-037	8	6 route table cases	implemented_and_verified	case	Exclude naked evidence-ID reads.	Bounded to the cited local contract and regression scope.
 SA11-P08-038	8	6 route table analysis and consents	pending	ai	Provide authorized async case draft request and status.	Criterion lacks an implementation or a complete local consumer.
 SA11-P08-039	8	6 route table analysis and consents	pending	ai	Record or revoke consent for processor, region, classes, term revision and expiry.	Criterion lacks an implementation or a complete local consumer.
 SA11-P08-040	8	6 route table analysis and consents	pending	ai	Reauthorize evidence references on each draft read.	Criterion lacks an implementation or a complete local consumer.
-SA11-P08-041	8	6 route table incidents and events	partially_implemented	incident	Require incident lead, If-Match and required transition evidence.	Remaining runtime, evidence or integration work described by the evidence profile.
+SA11-P08-041	8	6 route table incidents and events	partially_implemented	incident	Require incident lead, If-Match and required transition evidence.	Current case triage and containment requests use strong revision tags. Evidence-gated recovery transitions and the standalone incident interface remain open.
 SA11-P08-042	8	6 route table incidents and events	pending	incident	Ingest typed signed scoped connector events.	Criterion lacks an implementation or a complete local consumer.
 SA11-P08-043	8	6 route table incidents and events	implemented_and_verified	incident	Make case change separate from external remediation.	Bounded to the cited local contract and regression scope.
 SA11-P09-001	9	6 route table review and targets	pending	review	Expose target and enrollment interfaces to authorized administrators.	Criterion lacks an implementation or a complete local consumer.
@@ -515,7 +515,7 @@ SA11-P11-024	11	8 console rendering and tests	implemented_and_verified	console	E
 SA11-P11-025	11	8 console rendering and tests	partially_implemented	console	Apply CSP and frame protections.	Remaining runtime, evidence or integration work described by the evidence profile.
 SA11-P11-026	11	8 console rendering and tests	implemented_and_verified	console	Exclude third-party evidence telemetry and browser persistent evidence cache.	Bounded to the cited local contract and regression scope.
 SA11-P11-027	11	8 console rendering and tests	implemented_and_verified	console	Clear in-memory data on logout or discovered permission loss.	Bounded to the cited local contract and regression scope.
-SA11-P11-028	11	8 console rendering and tests	partially_implemented	console	Invalidate pending actions on 409 or 412.	Remaining runtime, evidence or integration work described by the evidence profile.
+SA11-P11-028	11	8 console rendering and tests	partially_implemented	console	Invalidate pending actions on 409 or 412.	The console removes stale incident controls, reloads authorized cases and awaits a fresh user action. Future approval and recovery views remain open.
 SA11-P11-029	11	8 console rendering and tests	pending	console	Make the text diff keyboard accessible.	Criterion lacks an implementation or a complete local consumer.
 SA11-P11-030	11	8 console rendering and tests	partially_implemented	console	Show status in accessible text and icons.	Remaining runtime, evidence or integration work described by the evidence profile.
 SA11-P11-052	11	8 console rendering and tests	partially_implemented	console	Expose screen-reader error summaries.	Remaining runtime, evidence or integration work described by the evidence profile.

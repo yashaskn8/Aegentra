@@ -56,6 +56,30 @@ test("browser Back revalidates session instead of restoring scoped evidence", as
   await expect(page.locator("ul.asset-list > li > span").filter({ hasText: "private-asset" })).toHaveCount(0);
 });
 
+test("stale incident actions reload current grants without replay", async ({ page }) => {
+  await configuredPage(page, () => 200);
+  let changed = false;
+  let transitions = 0;
+  await page.route("**/v1/cases", (route) => route.fulfill({ json: { items: [{
+    id: CASE, asset_id: ASSET, title: "Synthetic investigation",
+    status: changed ? "TRIAGED" : "OPEN", revision: changed ? 2 : 1,
+  }] } }));
+  await page.route(`**/v1/cases/${CASE}/transition`, (route) => {
+    expect(route.request().headers()["if-match"]).toBe(`"${CASE}:1"`);
+    expect(route.request().postDataJSON()).toEqual({ status: "TRIAGED" });
+    transitions += 1;
+    changed = true;
+    return route.fulfill({ status: 412, json: { detail: "stale incident revision" } });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Mark triaged" }).press("Enter");
+  await expect(page.getByText("TRIAGED · revision 2")).toBeVisible();
+  await expect(page.getByRole("alert").getByText(/The incident changed/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mark triaged" })).toHaveCount(0);
+  expect(transitions).toBe(1);
+});
+
 test("injected-looking case titles and evidence remain plain text", async ({ page }) => {
   await configuredPage(page, () => 200);
   const hostileTitle = '<img src=x onerror="window.pwned=1">';

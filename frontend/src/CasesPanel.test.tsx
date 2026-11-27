@@ -71,3 +71,21 @@ it("clears the case workspace when a timeline page loses its membership", async 
   expect(onAccessLost).not.toHaveBeenCalled();
   expect(fetchMock.mock.calls[2][0]).toContain(`cursor=${next}`);
 });
+
+it("reloads authorized case state after a stale transition without retrying it", async () => {
+  const item = { id: "case-a", asset_id: "asset-1", title: "First investigation", status: "OPEN", revision: 1 };
+  const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ items: [item] }))
+    .mockResolvedValueOnce(Response.json({}, { status: 412 }))
+    .mockResolvedValueOnce(Response.json({ items: [{ ...item, status: "TRIAGED", revision: 2 }] }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<CasesPanel user={{ role: "ANALYST", csrf_token: "synthetic" }} assets={[]} onAccessLost={vi.fn()} />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Mark triaged" }));
+  expect(await screen.findByText("TRIAGED · revision 2")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Mark triaged" })).toBeNull();
+  expect(fetchMock.mock.calls[1][1]).toMatchObject({
+    method: "POST", headers: { "If-Match": '"case-a:1"' },
+  });
+  expect(fetchMock.mock.calls[2][0]).toBe("/v1/cases");
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+});
