@@ -1,6 +1,6 @@
 """Recovery assesses gaps but never clears STOP or certifies restored state."""
 from dataclasses import replace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -30,6 +30,7 @@ def fixture() -> RecoveryFacts:
         prior_sessions_grants_and_approvals_invalidated=True,
         new_human_review_required=True,
         independent_origin_reenrollment_required=True,
+        restored_serving_disabled=True, restored_notifications_disabled=True,
     )
 
 
@@ -48,6 +49,8 @@ def test_complete_inventory_still_does_not_authorize_serving_or_veto_clear():
     "restore_network_isolated",
     "restored_all_credentials_quarantined",
     "restored_egress_and_ai_disabled",
+    "restored_serving_disabled",
+    "restored_notifications_disabled",
     "all_immutable_witness_versions_reconciled",
     "audit_streams_and_outbox_reconciled",
     "unknown_selection_attempts_reconciled",
@@ -91,3 +94,24 @@ def test_all_blockers_reported_for_operator_reconciliation():
         "SECURITY_VETO_NOT_ACTIVE", "OLD_WRITER_NOT_FENCED",
         "DELETION_TOMBSTONE_GAP",
     }
+
+
+@pytest.mark.parametrize(("field", "value", "code"), [
+    ("security_veto_still_active", "unknown", "SECURITY_VETO_NOT_ACTIVE"),
+    ("deletion_tombstones_reconciled", 1, "DELETION_TOMBSTONE_GAP"),
+    ("old_external_generation", True, "EXTERNAL_MONOTONIC_FLOOR_UNPROVEN"),
+    ("proposed_external_generation", "6", "EXTERNAL_MONOTONIC_FLOOR_UNPROVEN"),
+    ("proposed_external_generation", 2**63, "EXTERNAL_MONOTONIC_FLOOR_UNPROVEN"),
+    ("separate_custodians", 2.5, "DUAL_RECOVERY_CUSTODY_MISSING"),
+    ("org_id", UUID(int=0), "RECOVERY_IDENTITY_INVALID"),
+])
+def test_unverified_inventory_values_report_blockers(field, value, code):
+    result = assess_recovery(replace(fixture(), **{field: value}))
+    assert result.status == RecoveryStatus.BLOCKED
+    assert code in result.blockers
+
+
+def test_restore_serving_and_notifications_require_distinct_disabled_facts():
+    result = assess_recovery(replace(fixture(), restored_serving_disabled=False, restored_notifications_disabled=False))
+    assert "RESTORE_SERVING_ENABLED_OR_UNPROVEN" in result.blockers
+    assert "RESTORE_NOTIFICATIONS_ENABLED_OR_UNPROVEN" in result.blockers

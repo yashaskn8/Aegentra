@@ -76,4 +76,5 @@ include = [
   "aegentra/coverage.py",
   "aegentra/intake.py",
   "aegentra/operations_projection.py",
+  "aegentra/recovery_preflight.py",
 ]

@@ -7,12 +7,16 @@ clears security-account STOP, or authorizes origin serving.
 
 Required preconditions are separately demonstrated old-region writer
 fencing, customer origin route closure, externally active STOP,
-network-isolated restore with disabled egress/AI, quarantined credentials,
+network-isolated restore with disabled egress/AI, serving and notifications, quarantined credentials,
 independent minimum incarnation/generation, full archive/audit/outbox/
 attempt/publication/readback reconciliation, tombstones, consent revocations,
 old-grant/session invalidation and fresh human review.
 
 A complete inventory returns only `READY_FOR_INDEPENDENT_REVIEW`.
+An explicit boolean `True` is required for every attested control. Inventory
+identifiers must be non-nil UUIDs and the external generation must advance a
+positive, signed-64-bit floor. The serving and notification fields default to
+unverified so omission blocks review.
 Its boolean fields are **not cryptographic evidence**: callers must ground
 each from retained, independently signed records and custody controls.
 Reviewers cannot convert this assessment into a root/veto-clear command.

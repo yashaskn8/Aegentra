@@ -41,6 +41,8 @@ class RecoveryFacts:
     prior_sessions_grants_and_approvals_invalidated: bool
     new_human_review_required: bool
     independent_origin_reenrollment_required: bool
+    restored_serving_disabled: bool = False
+    restored_notifications_disabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -55,22 +57,27 @@ def assess_recovery(facts: RecoveryFacts) -> RecoveryAssessment:
     """Inventory blockers without silently inferring a successful recovery."""
     blocked: list[str] = []
 
-    def need(condition: bool, code: str) -> None:
-        if not condition:
+    def need(condition: object, code: str) -> None:
+        if condition is not True:
             blocked.append(code)
 
-    need(
-        facts.proposed_incarnation not in {
-            facts.old_incarnation, facts.restored_incarnation
-        }, "PROPOSED_INCARNATION_REUSED",
+    identities = (facts.org_id, facts.old_incarnation, facts.restored_incarnation, facts.proposed_incarnation)
+    valid_identities = all(isinstance(value, UUID) and value.int != 0 for value in identities)
+    need(valid_identities, "RECOVERY_IDENTITY_INVALID")
+    if valid_identities:
+        need(
+            facts.proposed_incarnation not in {facts.old_incarnation, facts.restored_incarnation},
+            "PROPOSED_INCARNATION_REUSED",
+        )
+
+    old, floor, proposed = (
+        facts.old_external_generation, facts.external_minimum_generation, facts.proposed_external_generation,
     )
     need(
-        facts.old_external_generation > 0
-        and facts.external_minimum_generation >= facts.old_external_generation
-        and facts.proposed_external_generation > facts.external_minimum_generation,
+        all(type(value) is int for value in (old, floor, proposed)) and 0 < old <= floor < proposed <= 2**63 - 1,
         "EXTERNAL_MONOTONIC_FLOOR_UNPROVEN",
     )
-    need(facts.separate_custodians >= 2, "DUAL_RECOVERY_CUSTODY_MISSING")
+    need(type(facts.separate_custodians) is int and facts.separate_custodians >= 2, "DUAL_RECOVERY_CUSTODY_MISSING")
     checks = (
         ("SECURITY_VETO_NOT_ACTIVE", facts.security_veto_still_active),
         ("OLD_WRITER_NOT_FENCED", facts.old_writer_fenced),
@@ -78,6 +85,8 @@ def assess_recovery(facts: RecoveryFacts) -> RecoveryAssessment:
         ("RESTORE_NETWORK_NOT_ISOLATED", facts.restore_network_isolated),
         ("OLD_CREDENTIALS_NOT_QUARANTINED", facts.restored_all_credentials_quarantined),
         ("RESTORE_EGRESS_OR_AI_ENABLED", facts.restored_egress_and_ai_disabled),
+        ("RESTORE_SERVING_ENABLED_OR_UNPROVEN", facts.restored_serving_disabled),
+        ("RESTORE_NOTIFICATIONS_ENABLED_OR_UNPROVEN", facts.restored_notifications_disabled),
         ("WITNESS_HISTORY_GAP", facts.all_immutable_witness_versions_reconciled),
         ("AUDIT_OR_OUTBOX_GAP", facts.audit_streams_and_outbox_reconciled),
         ("UNKNOWN_ATTEMPT_GAP", facts.unknown_selection_attempts_reconciled),
