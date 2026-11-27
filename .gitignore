@@ -13,3 +13,9 @@ coverage/
 *.egg-info/
 .idea/
 .vscode/
+.codegraph/
+.hypothesis/
+.import_linter_cache/
+.playwright-mcp/
+frontend/test-results/
+infra/cdk.out/

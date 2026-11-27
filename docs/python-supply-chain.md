@@ -27,14 +27,14 @@
 
 ## Regenerating a dependency lock (review required)
 
-Use a clean Python 3.12 environment, review proposed dependency changes,
+Generate from a clean native Windows Python 3.12 environment so the shared
+lock includes Windows transitive dependencies. Review the proposed graph
 and rerun the existing advisory, unit, integration and adversarial gates.
 
 ```bash
-cd backend
 python -m pip install 'pip-tools==7.6.2'
-pip-compile --extra dev --generate-hashes --strip-extras \
-  --output-file requirements.lock pyproject.toml
+pip-compile --extra=dev --generate-hashes --output-file=backend/requirements.lock --strip-extras backend/pyproject.toml
+cd backend
 python -m pip install --require-hashes -r requirements.lock
 python -m pip install --no-deps -e '.[dev]'
 python -m pip check
@@ -45,8 +45,9 @@ python scripts/supply_chain.py verify /tmp/aegentra-source.cdx.json
 
 Changes to a lockfile are security-relevant code changes. Review changed
 versions, source project, transitive edges and integrity digests before
-committing. The Python lock is generated for the CI baseline of CPython
-3.12; other systems/platforms require their own qualification.
+committing. The Python lock targets CPython 3.12 in Linux CI and on Windows.
+It pins and hashes `colorama`, which pytest and Click require on Windows.
+The shared lock includes that pin on both platforms.
 
 ## Security boundaries
 

@@ -24,6 +24,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "colorama>=0.4.6,<1; sys_platform == 'win32'",
+  "hypothesis==6.170.17",
+  "import-linter==2.17",
   "pytest>=8,<10",
   "ruff>=0.9,<1",
 ]
@@ -35,3 +38,37 @@ include = ["aegentra*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.importlinter]
+root_package = "aegentra"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Content contracts stay independent of application and infrastructure adapters"
+type = "forbidden"
+source_modules = [
+  "aegentra.bounded_json",
+  "aegentra.content_manifest",
+  "aegentra.coverage",
+  "aegentra.intake",
+  "aegentra.lockfile_analysis",
+]
+forbidden_modules = ["aegentra.api", "aegentra.db", "fastapi", "sqlalchemy", "boto3", "botocore"]
+
+[[tool.importlinter.contracts]]
+name = "Database records do not depend on their application services"
+type = "forbidden"
+source_modules = ["aegentra.db"]
+forbidden_modules = ["aegentra.api", "aegentra.audit", "aegentra.auth_store", "aegentra.case_store", "aegentra.persistence"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = [
+  "aegentra/asset_store.py",
+  "aegentra/bounded_json.py",
+  "aegentra/content_manifest.py",
+  "aegentra/coverage.py",
+  "aegentra/intake.py",
+  "aegentra/operations_projection.py",
+]
