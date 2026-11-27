@@ -21,6 +21,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Check TypeScript and build Vite
         run: npm run build
+      - name: Enforce frontend import boundaries
+        run: npm run check:architecture
       - name: Test scoped console rendering
         run: npm run test
       - name: Install native Chromium and system libraries (no containers)
